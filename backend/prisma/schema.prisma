@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Branding preferences
+  brandColors       String?   // JSON string of color palette
+  brandLogo         String?
+  brandFont         String?
+  brandFontSize     String?   // small, medium, large
+  brandPrimaryColor String?   // Hex color
+  brandAccentColor  String?   // Hex color
+  brandTextColor    String?   // Hex color for text
+  brandBackgroundColor String? // Hex color for background
+  brandChartBg      String?   // dark, light, transparent
+  theme             String    @default("dark")
+
+  // Relations
+  workspaces    WorkspaceMember[]
+  ownedWorkspaces Workspace[] @relation("WorkspaceOwner")
+  documents     Document[]
+  analyses      Analysis[]
+  charts        Chart[]
+  messages      Message[]
+  comments      Comment[]
+  compareSessions CompareSession[]
+}
+
+model Workspace {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Owner
+  ownerId     String
+  owner       User      @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+
+  // Relations
+  members     WorkspaceMember[]
+  documents   Document[]
+  analyses    Analysis[]
+  charts      Chart[]
+}
+
+model WorkspaceMember {
+  id          String    @id @default(uuid())
+  role        String    @default("viewer") // admin, editor, viewer
+  joinedAt    DateTime  @default(now())
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+}
+
+model Document {
+  id          String    @id @default(uuid())
+  name        String
+  type        String    // pdf, csv, excel, image
+  size        Int
+  path        String
+  mimeType    String
+  content     String?   // Extracted text content
+  metadata    String?   // JSON string of extracted metadata
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  uploadedById String
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+
+  workspaceId  String?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id])
+
+  analyses     AnalysisDocument[]
+}
+
+model Analysis {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+
+  documents   AnalysisDocument[]
+  messages    Message[]
+  charts      Chart[]
+}
+
+model AnalysisDocument {
+  id          String    @id @default(uuid())
+  addedAt     DateTime  @default(now())
+
+  analysisId  String
+  analysis    Analysis  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  documentId  String
+  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([analysisId, documentId])
+}
+
+model Message {
+  id          String    @id @default(uuid())
+  role        String    // user, assistant
+  content     String
+  metadata    String?   // JSON string for charts, data references, etc.
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  isEdited    Boolean   @default(false)
+
+  // Relations
+  analysisId  String
+  analysis    Analysis  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+
+  comments    Comment[]
+}
+
+model Chart {
+  id          String    @id @default(uuid())
+  title       String
+  type        String    // bar, line, pie, area, scatter
+  data        String    // JSON string of chart data
+  config      String    // JSON string of chart configuration
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Customization
+  colors      String?   // JSON array of colors
+  background  String    @default("dark") // light, dark, transparent
+  fontFamily  String?
+  showLegend  Boolean   @default(true)
+  showGrid    Boolean   @default(true)
+
+  // Relations
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+
+  analysisId  String?
+  analysis    Analysis? @relation(fields: [analysisId], references: [id])
+}
+
+model Invitation {
+  id          String    @id @default(uuid())
+  email       String
+  role        String    @default("viewer")
+  token       String    @unique
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  workspaceId String
+}
+
+model CompareSession {
+  id          String    @id @default(uuid())
+  title       String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  workspaceId String?
+
+  items       CompareItem[]
+  comments    Comment[]
+}
+
+model CompareItem {
+  id          String    @id @default(uuid())
+  type        String    // document, chart, link, pdf
+  title       String
+  content     String?   // For links: URL, for text content
+  data        String?   // JSON string for chart data or metadata
+  position    Int       @default(0) // Order in comparison
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  sessionId   String
+  session     CompareSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  documentId  String?   // If linked to a document
+  chartId     String?   // If linked to a chart
+
+  comments    Comment[]
+}
+
+model Comment {
+  id          String    @id @default(uuid())
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id])
+
+  sessionId   String?
+  session     CompareSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  itemId      String?
+  item        CompareItem? @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  // For message comments (editable outcomes)
+  messageId   String?
+  message     Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
