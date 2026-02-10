@@ -2,7 +2,14 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-const storage = multer.diskStorage({
+// Use memory storage for S3 uploads, disk storage for local
+const isS3Enabled = !!(
+  process.env.AWS_ACCESS_KEY_ID &&
+  process.env.AWS_SECRET_ACCESS_KEY &&
+  process.env.AWS_S3_BUCKET
+);
+
+const diskStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/');
   },
@@ -12,6 +19,8 @@ const storage = multer.diskStorage({
     cb(null, uniqueName);
   },
 });
+
+const memoryStorage = multer.memoryStorage();
 
 const fileFilter = (
   req: Express.Request,
@@ -38,9 +47,11 @@ const fileFilter = (
 };
 
 export const upload = multer({
-  storage,
+  storage: isS3Enabled ? memoryStorage : diskStorage,
   fileFilter,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
 });
+
+export { isS3Enabled };

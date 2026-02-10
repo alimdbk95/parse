@@ -31,6 +31,29 @@ export class DocumentService {
     }
   }
 
+  // Parse from buffer (for S3 uploads)
+  async parseFromBuffer(buffer: Buffer, mimeType: string, filename: string): Promise<string | null> {
+    const ext = path.extname(filename).toLowerCase();
+
+    try {
+      switch (ext) {
+        case '.csv':
+        case '.txt':
+        case '.json':
+          return buffer.toString('utf-8');
+        case '.pdf':
+          const pdfParse = (await import('pdf-parse')).default;
+          const data = await pdfParse(buffer);
+          return data.text;
+        default:
+          return buffer.toString('utf-8');
+      }
+    } catch (error) {
+      console.error('Error parsing buffer:', error);
+      return null;
+    }
+  }
+
   private async parseCSV(filePath: string): Promise<ParsedDocument> {
     try {
       const fileContent = fs.readFileSync(filePath, 'utf-8');

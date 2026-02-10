@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
 import { authenticate, AuthRequest } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
+import { upload, isS3Enabled } from '../middleware/upload.js';
 import { documentService } from '../services/documentService.js';
+import { uploadToS3, getSignedDownloadUrl, deleteFromS3 } from '../services/s3Service.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -43,22 +44,43 @@ router.post('/upload', authenticate, upload.single('file'), async (req: AuthRequ
     }
 
     const { workspaceId } = req.body;
+    let filePath: string;
+    let content: string | null = null;
+    let metadata: any = {};
 
-    // Parse document content
-    const parsed = await documentService.parseDocument(
-      req.file.path,
-      req.file.mimetype
-    );
+    if (isS3Enabled) {
+      // Upload to S3
+      const s3Result = await uploadToS3(req.file, 'documents');
+      filePath = s3Result.key; // Store S3 key as path
+
+      // Parse content from buffer for S3 uploads
+      content = await documentService.parseFromBuffer(
+        req.file.buffer,
+        req.file.mimetype,
+        req.file.originalname
+      );
+    } else {
+      // Local storage
+      filePath = req.file.path;
+
+      // Parse document content from file
+      const parsed = await documentService.parseDocument(
+        req.file.path,
+        req.file.mimetype
+      );
+      content = parsed.content;
+      metadata = parsed.metadata;
+    }
 
     const document = await prisma.document.create({
       data: {
         name: req.file.originalname,
         type: path.extname(req.file.originalname).replace('.', ''),
         size: req.file.size,
-        path: req.file.path,
+        path: filePath,
         mimeType: req.file.mimetype,
-        content: parsed.content,
-        metadata: JSON.stringify(parsed.metadata),
+        content: content,
+        metadata: JSON.stringify(metadata),
         uploadedById: req.user!.id,
         workspaceId: workspaceId || null,
       },
@@ -176,7 +198,14 @@ router.get('/:id/download', authenticate, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    res.download(document.path, document.name);
+    if (isS3Enabled) {
+      // Generate signed URL for S3 download
+      const signedUrl = await getSignedDownloadUrl(document.path);
+      res.json({ downloadUrl: signedUrl });
+    } else {
+      // Local file download
+      res.download(document.path, document.name);
+    }
   } catch (error) {
     console.error('Download error:', error);
     res.status(500).json({ error: 'Failed to download document' });
@@ -198,7 +227,9 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
     }
 
     // Delete file from storage
-    if (fs.existsSync(document.path)) {
+    if (isS3Enabled) {
+      await deleteFromS3(document.path);
+    } else if (fs.existsSync(document.path)) {
       fs.unlinkSync(document.path);
     }
 
