@@ -1,5 +1,6 @@
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 
 // Use memory storage for S3 uploads, disk storage for local
@@ -8,6 +9,19 @@ const isS3Enabled = !!(
   process.env.AWS_SECRET_ACCESS_KEY &&
   process.env.AWS_S3_BUCKET
 );
+
+console.log('Upload middleware - S3 enabled:', isS3Enabled);
+console.log('Upload middleware - AWS_S3_BUCKET:', process.env.AWS_S3_BUCKET);
+console.log('Upload middleware - AWS_REGION:', process.env.AWS_REGION);
+
+// Ensure uploads directory exists for local storage
+if (!isS3Enabled) {
+  const uploadsDir = 'uploads';
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('Created uploads directory');
+  }
+}
 
 const diskStorage = multer.diskStorage({
   destination: (req, file, cb) => {
