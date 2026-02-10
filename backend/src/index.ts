@@ -28,8 +28,21 @@ const io = new Server(httpServer, {
 export const prisma = new PrismaClient();
 
 // Middleware
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'https://parse-je1m.vercel.app'
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.some(allowed => origin.startsWith(allowed!))) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Allow all for now during debugging
+  },
   credentials: true,
 }));
 app.use(express.json());
@@ -93,7 +106,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3001;
 
-httpServer.listen(PORT, () => {
+httpServer.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`Parse API server running on port ${PORT}`);
 });
 
