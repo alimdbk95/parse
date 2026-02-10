@@ -101,9 +101,13 @@ router.post('/upload', authenticate, upload.single('file'), async (req: AuthRequ
     }
 
     res.status(201).json({ document });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Upload error:', error);
-    res.status(500).json({ error: 'Failed to upload document' });
+    res.status(500).json({
+      error: 'Failed to upload document',
+      details: error?.message || 'Unknown error',
+      stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+    });
   }
 });
 

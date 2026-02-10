@@ -21,6 +21,9 @@ export async function uploadToS3(
   file: Express.Multer.File,
   folder: string = 'documents'
 ): Promise<UploadResult> {
+  console.log('S3 Upload - Bucket:', BUCKET_NAME, 'Region:', process.env.AWS_REGION);
+  console.log('S3 Upload - File:', file.originalname, 'Size:', file.size);
+
   const fileExtension = file.originalname.split('.').pop();
   const key = `${folder}/${uuidv4()}.${fileExtension}`;
 
@@ -31,7 +34,13 @@ export async function uploadToS3(
     ContentType: file.mimetype,
   });
 
-  await s3Client.send(command);
+  try {
+    await s3Client.send(command);
+    console.log('S3 Upload - Success:', key);
+  } catch (error: any) {
+    console.error('S3 Upload - Error:', error?.message, error?.Code);
+    throw error;
+  }
 
   return {
     key,
