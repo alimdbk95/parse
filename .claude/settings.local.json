@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run db:push:*)",
+      "Bash(lsof:*)",
+      "Bash(npm run build:*)",
+      "Bash(pkill:*)",
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e:*)",
+      "Bash(node:*)"
+    ]
+  }
+}
