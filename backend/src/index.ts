@@ -67,16 +67,23 @@ app.get('/api/health', (req, res) => {
 
 // Database health check
 app.get('/api/health/db', async (req, res) => {
+  const dbUrl = process.env.DATABASE_URL || '';
+  const hostPart = dbUrl.split('@')[1]?.split('/')[0] || 'unknown';
+  const dbName = dbUrl.split('/').pop()?.split('?')[0] || 'unknown';
+
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({ status: 'ok', database: 'connected' });
+    res.json({ status: 'ok', database: 'connected', host: hostPart });
   } catch (error: any) {
     console.error('Database health check failed:', error?.message);
     res.status(500).json({
       status: 'error',
       database: 'disconnected',
       error: error?.message || 'Unknown error',
-      host: process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] || 'unknown'
+      host: hostPart,
+      dbName: dbName,
+      urlSet: !!process.env.DATABASE_URL,
+      urlLength: dbUrl.length
     });
   }
 });
