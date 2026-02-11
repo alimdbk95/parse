@@ -68,9 +68,14 @@ router.post('/register', async (req, res) => {
         name: workspace.name,
       },
     });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Failed to register user' });
+  } catch (error: any) {
+    console.error('Registration error:', error?.message || error);
+    console.error('Registration error code:', error?.code);
+    console.error('Registration error stack:', error?.stack);
+    res.status(500).json({
+      error: 'Failed to register user',
+      details: error?.message || 'Unknown error'
+    });
   }
 });
 
@@ -126,9 +131,13 @@ router.post('/login', async (req, res) => {
         role: w.role,
       })),
     });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Failed to login' });
+  } catch (error: any) {
+    console.error('Login error:', error?.message || error);
+    console.error('Login error code:', error?.code);
+    res.status(500).json({
+      error: 'Failed to login',
+      details: error?.message || 'Unknown error'
+    });
   }
 });
 
