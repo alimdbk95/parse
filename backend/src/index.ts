@@ -65,6 +65,22 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Database health check
+app.get('/api/health/db', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', database: 'connected' });
+  } catch (error: any) {
+    console.error('Database health check failed:', error?.message);
+    res.status(500).json({
+      status: 'error',
+      database: 'disconnected',
+      error: error?.message || 'Unknown error',
+      host: process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] || 'unknown'
+    });
+  }
+});
+
 // Global error handler - catches multer and other middleware errors
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Global error handler caught:', err);
