@@ -65,6 +65,38 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Global error handler - catches multer and other middleware errors
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Global error handler caught:', err);
+  console.error('Error name:', err?.name);
+  console.error('Error message:', err?.message);
+  console.error('Error code:', err?.code);
+  console.error('Error stack:', err?.stack);
+
+  // Multer errors
+  if (err?.name === 'MulterError') {
+    return res.status(400).json({
+      error: 'File upload error',
+      details: err.message,
+      code: err.code
+    });
+  }
+
+  // File filter errors
+  if (err?.message?.includes('File type')) {
+    return res.status(400).json({
+      error: 'Invalid file type',
+      details: err.message
+    });
+  }
+
+  res.status(500).json({
+    error: 'Internal server error',
+    details: err?.message || 'Unknown error',
+    name: err?.name
+  });
+});
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
