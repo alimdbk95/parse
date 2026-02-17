@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../index.js';
 import { authenticate, AuthRequest } from '../middleware/auth.js';
 import { aiService } from '../services/aiService.js';
+import PDFDocument from 'pdfkit';
 
 const router = Router();
 
@@ -143,6 +144,14 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
           },
         },
         charts: true,
+        workspace: {
+          include: {
+            members: {
+              where: { userId: req.user!.id },
+              select: { role: true },
+            },
+          },
+        },
       },
     });
 
@@ -150,7 +159,24 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Analysis not found' });
     }
 
-    res.json({ analysis });
+    // Determine user's role
+    let userRole = 'viewer';
+    if (analysis.createdById === req.user!.id) {
+      userRole = 'admin';
+    } else if (analysis.workspace?.members?.[0]?.role) {
+      userRole = analysis.workspace.members[0].role;
+    }
+
+    // Remove workspace member info from response
+    const { workspace, ...analysisWithoutWorkspace } = analysis;
+
+    res.json({
+      analysis: {
+        ...analysisWithoutWorkspace,
+        workspaceId: workspace?.id || null,
+      },
+      userRole,
+    });
   } catch (error) {
     console.error('Get analysis error:', error);
     res.status(500).json({ error: 'Failed to get analysis' });
@@ -516,6 +542,182 @@ router.get('/:analysisId/messages/:messageId/comments', authenticate, async (req
   } catch (error) {
     console.error('Get comments error:', error);
     res.status(500).json({ error: 'Failed to get comments' });
+  }
+});
+
+// Export analysis as PDF
+router.get('/:id/export/pdf', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const analysis = await prisma.analysis.findFirst({
+      where: {
+        id: req.params.id,
+        OR: [
+          { createdById: req.user!.id },
+          {
+            workspace: {
+              members: {
+                some: { userId: req.user!.id },
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        documents: {
+          include: {
+            document: {
+              select: { id: true, name: true, type: true },
+            },
+          },
+        },
+        messages: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            user: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!analysis) {
+      return res.status(404).json({ error: 'Analysis not found' });
+    }
+
+    // Create PDF document
+    const doc = new PDFDocument({
+      margin: 50,
+      size: 'A4',
+    });
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${analysis.title.replace(/[^a-z0-9]/gi, '_')}_analysis.pdf"`
+    );
+
+    // Pipe to response
+    doc.pipe(res);
+
+    // Title
+    doc
+      .fontSize(24)
+      .font('Helvetica-Bold')
+      .text(analysis.title, { align: 'center' });
+
+    doc.moveDown();
+
+    // Metadata
+    doc
+      .fontSize(10)
+      .font('Helvetica')
+      .fillColor('#666666')
+      .text(`Created by: ${analysis.createdBy.name}`, { align: 'center' })
+      .text(`Date: ${new Date(analysis.createdAt).toLocaleDateString()}`, { align: 'center' });
+
+    doc.moveDown();
+
+    // Documents section
+    if (analysis.documents.length > 0) {
+      doc
+        .fontSize(14)
+        .font('Helvetica-Bold')
+        .fillColor('#000000')
+        .text('Documents Analyzed:');
+
+      doc.moveDown(0.5);
+
+      analysis.documents.forEach((d) => {
+        doc
+          .fontSize(10)
+          .font('Helvetica')
+          .text(`• ${d.document.name} (${d.document.type.toUpperCase()})`);
+      });
+
+      doc.moveDown();
+    }
+
+    // Divider
+    doc
+      .strokeColor('#cccccc')
+      .lineWidth(1)
+      .moveTo(50, doc.y)
+      .lineTo(545, doc.y)
+      .stroke();
+
+    doc.moveDown();
+
+    // Conversation section
+    doc
+      .fontSize(14)
+      .font('Helvetica-Bold')
+      .fillColor('#000000')
+      .text('Analysis Conversation:');
+
+    doc.moveDown();
+
+    // Messages
+    for (const message of analysis.messages) {
+      const isUser = message.role === 'user';
+      const senderName = isUser ? (message.user?.name || 'User') : 'Parse AI';
+
+      // Message header
+      doc
+        .fontSize(10)
+        .font('Helvetica-Bold')
+        .fillColor(isUser ? '#3b82f6' : '#10b981')
+        .text(senderName, { continued: true })
+        .font('Helvetica')
+        .fillColor('#999999')
+        .text(`  •  ${new Date(message.createdAt).toLocaleString()}`);
+
+      doc.moveDown(0.3);
+
+      // Message content
+      doc
+        .fontSize(11)
+        .font('Helvetica')
+        .fillColor('#333333')
+        .text(message.content, {
+          align: 'left',
+          lineGap: 2,
+        });
+
+      // Check if message has edited flag
+      if (message.isEdited) {
+        doc
+          .fontSize(8)
+          .fillColor('#999999')
+          .text('(edited)');
+      }
+
+      doc.moveDown();
+
+      // Add page break if needed
+      if (doc.y > 700) {
+        doc.addPage();
+      }
+    }
+
+    // Footer
+    doc.moveDown();
+    doc
+      .fontSize(8)
+      .fillColor('#999999')
+      .text(`Generated by Parse on ${new Date().toLocaleString()}`, {
+        align: 'center',
+      });
+
+    // Finalize PDF
+    doc.end();
+  } catch (error) {
+    console.error('Export PDF error:', error);
+    res.status(500).json({ error: 'Failed to export analysis' });
   }
 });
 

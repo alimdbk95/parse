@@ -31,6 +31,7 @@ interface MessageListProps {
   onEditMessage?: (messageId: string, newContent: string) => Promise<void>;
   onAddComment?: (messageId: string, content: string) => Promise<void>;
   onDeleteComment?: (commentId: string) => Promise<void>;
+  readOnly?: boolean;
 }
 
 export function MessageList({
@@ -43,6 +44,7 @@ export function MessageList({
   onEditMessage,
   onAddComment,
   onDeleteComment,
+  readOnly = false,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 

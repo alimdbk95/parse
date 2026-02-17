@@ -139,7 +139,22 @@ class ApiClient {
   }
 
   async getAnalysis(id: string) {
-    return this.request<{ analysis: any }>(`/analyses/${id}`);
+    return this.request<{ analysis: any; userRole: string }>(`/analyses/${id}`);
+  }
+
+  async exportAnalysisPdf(id: string) {
+    const token = this.getToken();
+    const response = await fetch(`${API_URL}/analyses/${id}/export/pdf`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to export PDF');
+    }
+
+    return response.blob();
   }
 
   async sendMessage(analysisId: string, content: string) {

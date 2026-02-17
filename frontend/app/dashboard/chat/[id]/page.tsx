@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Paperclip, Plus, Pencil, Check, X } from 'lucide-react';
+import { Paperclip, Plus, Pencil, Check, X, Download, Eye } from 'lucide-react';
 import { MessageList } from '@/components/chat/message-list';
 import { ChatInput } from '@/components/chat/chat-input';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,8 @@ export default function ChatPage() {
   const [showDocuments, setShowDocuments] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [availableDocs, setAvailableDocs] = useState<any[]>([]);
+  const [exporting, setExporting] = useState(false);
+  const [userRole, setUserRole] = useState<string>('viewer');
 
   // Title editing
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -42,11 +44,15 @@ export default function ChatPage() {
   // Comments state
   const [messageComments, setMessageComments] = useState<Record<string, Comment[]>>({});
 
+  // Check if user can edit (admin or editor)
+  const canEdit = userRole === 'admin' || userRole === 'editor';
+
   useEffect(() => {
     const fetchAnalysis = async () => {
       try {
-        const { analysis } = await api.getAnalysis(analysisId);
+        const { analysis, userRole: role } = await api.getAnalysis(analysisId);
         setAnalysis(analysis);
+        setUserRole(role);
         setEditedTitle(analysis.title);
 
         // Parse message metadata (including charts) from JSON strings
@@ -207,6 +213,25 @@ export default function ChatPage() {
     }
   };
 
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      const blob = await api.exportAnalysisPdf(analysisId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${analysis?.title || 'analysis'}_export.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Failed to export PDF:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -260,14 +285,16 @@ export default function ChatPage() {
             ) : (
               <div className="flex items-center gap-2 group">
                 <h1 className="font-semibold truncate">{analysis?.title || 'Analysis'}</h1>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => setIsEditingTitle(true)}
-                >
-                  <Pencil className="h-3.5 w-3.5 text-foreground-tertiary" />
-                </Button>
+                {canEdit && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => setIsEditingTitle(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-foreground-tertiary" />
+                  </Button>
+                )}
               </div>
             )}
             {documents.length > 0 && !isEditingTitle && (
@@ -277,6 +304,21 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {!canEdit && (
+              <span className="flex items-center gap-1 rounded-full bg-background-secondary px-2 py-0.5 text-xs text-foreground-tertiary">
+                <Eye className="h-3 w-3" />
+                View only
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleExportPdf}
+              disabled={exporting}
+            >
+              <Download className="mr-1 h-4 w-4" />
+              {exporting ? 'Exporting...' : 'Export PDF'}
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -295,21 +337,23 @@ export default function ChatPage() {
           userName={user?.name}
           currentUserId={user?.id}
           messageComments={messageComments}
-          onEditMessage={handleEditMessage}
+          onEditMessage={canEdit ? handleEditMessage : undefined}
           onAddComment={handleAddComment}
           onDeleteComment={handleDeleteComment}
+          readOnly={!canEdit}
         />
 
         {/* Input */}
         <ChatInput
           onSend={handleSendMessage}
           onAttach={() => setShowDocuments(true)}
-          disabled={sending}
+          disabled={sending || !canEdit}
           attachedFiles={documents.map((d) => ({
             id: d.id,
             name: d.name,
             type: d.type,
           }))}
+          placeholder={canEdit ? undefined : 'View only - you cannot send messages'}
         />
       </div>
 
