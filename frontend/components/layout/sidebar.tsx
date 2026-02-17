@@ -12,13 +12,13 @@ import {
   Settings,
   Plus,
   ChevronLeft,
-  Zap,
   Users,
   LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
+import { Logo, LogoIcon } from '@/components/ui/logo';
 import { Menu, MenuItem, MenuDivider } from '@/components/ui/dropdown';
 import { useStore } from '@/lib/store';
 
@@ -48,21 +48,11 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
       {/* Header */}
       <div className="flex h-16 items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-            <Zap className="h-5 w-5 text-white" />
-          </div>
-          <AnimatePresence>
-            {sidebarOpen && (
-              <motion.span
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                className="text-lg font-semibold"
-              >
-                Parse
-              </motion.span>
-            )}
-          </AnimatePresence>
+          {sidebarOpen ? (
+            <Logo size="sm" />
+          ) : (
+            <LogoIcon size={36} />
+          )}
         </Link>
         <Button
           variant="ghost"

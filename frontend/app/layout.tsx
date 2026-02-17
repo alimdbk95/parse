@@ -2,8 +2,11 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Parse - Research Document Analysis',
+  title: 'Parse - AI Research Analysis',
   description: 'AI-powered research tool for document analysis, data extraction, and visualization',
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export default function RootLayout({

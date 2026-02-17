@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Zap, Mail, Lock, ArrowRight } from 'lucide-react';
+import { Mail, Lock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Logo, LogoIcon } from '@/components/ui/logo';
 import { api } from '@/lib/api';
 import { useStore } from '@/lib/store';
 
@@ -44,11 +45,8 @@ export default function LoginPage() {
       <div className="flex flex-1 flex-col justify-center px-8 py-12 lg:px-12">
         <div className="mx-auto w-full max-w-md">
           {/* Logo */}
-          <Link href="/" className="mb-8 flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-              <Zap className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold">Parse</span>
+          <Link href="/" className="mb-8 inline-block">
+            <Logo size="md" />
           </Link>
 
           {/* Heading */}
@@ -123,8 +121,8 @@ export default function LoginPage() {
           <div className="mb-8 flex justify-center">
             <div className="relative">
               <div className="absolute -inset-4 rounded-full bg-primary/20 blur-xl" />
-              <div className="relative flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent-purple">
-                <Zap className="h-12 w-12 text-white" />
+              <div className="relative">
+                <LogoIcon size={96} />
               </div>
             </div>
           </div>
