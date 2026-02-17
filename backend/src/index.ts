@@ -65,6 +65,33 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// S3 health check
+app.get('/api/health/s3', (req, res) => {
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID || '';
+  const secretKey = process.env.AWS_SECRET_ACCESS_KEY || '';
+  const bucket = process.env.AWS_S3_BUCKET || '';
+  const region = process.env.AWS_REGION || '';
+
+  res.json({
+    status: accessKeyId && secretKey && bucket ? 'configured' : 'missing',
+    region: region,
+    bucket: bucket,
+    accessKeyIdSet: !!accessKeyId,
+    accessKeyIdLength: accessKeyId.length,
+    accessKeyIdPrefix: accessKeyId.substring(0, 4),
+    secretKeySet: !!secretKey,
+    secretKeyLength: secretKey.length,
+    // Check for common issues
+    issues: [
+      accessKeyId.includes(' ') ? 'Access key contains spaces' : null,
+      secretKey.includes(' ') ? 'Secret key contains spaces' : null,
+      accessKeyId.startsWith('"') || accessKeyId.endsWith('"') ? 'Access key has quotes' : null,
+      secretKey.startsWith('"') || secretKey.endsWith('"') ? 'Secret key has quotes' : null,
+      !accessKeyId.startsWith('AKIA') && accessKeyId.length > 0 ? 'Access key should start with AKIA' : null,
+    ].filter(Boolean),
+  });
+});
+
 // Database health check
 app.get('/api/health/db', async (req, res) => {
   const dbUrl = process.env.DATABASE_URL || '';
