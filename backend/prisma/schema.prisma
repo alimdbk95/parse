@@ -37,6 +37,7 @@ model User {
   messages      Message[]
   comments      Comment[]
   compareSessions CompareSession[]
+  repositories  Repository[]
 }
 
 model Workspace {
@@ -236,4 +237,59 @@ model Comment {
   // For message comments (editable outcomes)
   messageId   String?
   message     Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model Repository {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  color       String?   // Hex color for visual identification
+  icon        String?   // Icon name for the repository
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  ownerId     String
+  owner       User      @relation(fields: [ownerId], references: [id])
+
+  // Items in repository
+  analyses    RepositoryAnalysis[]
+  documents   RepositoryDocument[]
+  comparisons RepositoryComparison[]
+}
+
+model RepositoryAnalysis {
+  id          String    @id @default(uuid())
+  addedAt     DateTime  @default(now())
+
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  analysisId  String
+
+  @@unique([repositoryId, analysisId])
+}
+
+model RepositoryDocument {
+  id          String    @id @default(uuid())
+  addedAt     DateTime  @default(now())
+
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  documentId  String
+
+  @@unique([repositoryId, documentId])
+}
+
+model RepositoryComparison {
+  id          String    @id @default(uuid())
+  addedAt     DateTime  @default(now())
+
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  comparisonId String
+
+  @@unique([repositoryId, comparisonId])
 }

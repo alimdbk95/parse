@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Paperclip, Plus, Pencil, Check, X, Download, Eye } from 'lucide-react';
+import { Paperclip, Plus, Pencil, Check, X, Download, Eye, FolderPlus, Folder } from 'lucide-react';
 import { MessageList } from '@/components/chat/message-list';
 import { ChatInput } from '@/components/chat/chat-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
+import { Card, CardContent } from '@/components/ui/card';
 import { DocumentListItem } from '@/components/documents/document-card';
 import { UploadZone } from '@/components/documents/upload-zone';
 import { api } from '@/lib/api';
@@ -36,6 +37,9 @@ export default function ChatPage() {
   const [availableDocs, setAvailableDocs] = useState<any[]>([]);
   const [exporting, setExporting] = useState(false);
   const [userRole, setUserRole] = useState<string>('viewer');
+  const [showSaveToRepo, setShowSaveToRepo] = useState(false);
+  const [repositories, setRepositories] = useState<any[]>([]);
+  const [savingToRepo, setSavingToRepo] = useState(false);
 
   // Title editing
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -232,6 +236,32 @@ export default function ChatPage() {
     }
   };
 
+  const handleOpenSaveToRepo = async () => {
+    try {
+      const { repositories } = await api.getRepositories();
+      setRepositories(repositories);
+      setShowSaveToRepo(true);
+    } catch (error) {
+      console.error('Failed to fetch repositories:', error);
+    }
+  };
+
+  const handleSaveToRepository = async (repositoryId: string) => {
+    setSavingToRepo(true);
+    try {
+      await api.addAnalysisToRepository(repositoryId, analysisId);
+      setShowSaveToRepo(false);
+    } catch (error: any) {
+      if (error.message?.includes('already')) {
+        alert('This analysis is already in the selected repository');
+      } else {
+        console.error('Failed to save to repository:', error);
+      }
+    } finally {
+      setSavingToRepo(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -310,6 +340,14 @@ export default function ChatPage() {
                 View only
               </span>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleOpenSaveToRepo}
+            >
+              <FolderPlus className="mr-1 h-4 w-4" />
+              Save to Repository
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -434,6 +472,57 @@ export default function ChatPage() {
         size="lg"
       >
         <UploadZone onUpload={handleUpload} />
+      </Modal>
+
+      {/* Save to Repository Modal */}
+      <Modal
+        isOpen={showSaveToRepo}
+        onClose={() => setShowSaveToRepo(false)}
+        title="Save to Repository"
+        description="Add this analysis to a repository for organization"
+      >
+        <div className="space-y-2 max-h-96 overflow-y-auto">
+          {repositories.length > 0 ? (
+            repositories.map((repo) => (
+              <Card
+                key={repo.id}
+                className="cursor-pointer transition-all hover:border-primary/50"
+                onClick={() => !savingToRepo && handleSaveToRepository(repo.id)}
+              >
+                <CardContent className="flex items-center gap-3 p-3">
+                  <div
+                    className="flex h-10 w-10 items-center justify-center rounded-xl"
+                    style={{ backgroundColor: `${repo.color}20` }}
+                  >
+                    <Folder className="h-5 w-5" style={{ color: repo.color }} />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium">{repo.name}</h4>
+                    {repo.description && (
+                      <p className="text-sm text-foreground-tertiary line-clamp-1">
+                        {repo.description}
+                      </p>
+                    )}
+                  </div>
+                  <Plus className="h-4 w-4 text-foreground-tertiary" />
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="py-8 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent-purple/20">
+                <Folder className="h-6 w-6 text-accent-purple" />
+              </div>
+              <p className="text-foreground-tertiary mb-4">No repositories yet</p>
+              <Button onClick={() => {
+                setShowSaveToRepo(false);
+                router.push('/dashboard');
+              }}>
+                Create Repository
+              </Button>
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );

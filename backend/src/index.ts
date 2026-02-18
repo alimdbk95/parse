@@ -14,6 +14,7 @@ import chartRoutes from './routes/charts.js';
 import workspaceRoutes from './routes/workspaces.js';
 import settingsRoutes from './routes/settings.js';
 import compareRoutes from './routes/compare.js';
+import repositoryRoutes from './routes/repositories.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -59,6 +60,7 @@ app.use('/api/charts', chartRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/compare', compareRoutes);
+app.use('/api/repositories', repositoryRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

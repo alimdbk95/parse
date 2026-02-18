@@ -2,16 +2,20 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, FileText, BarChart3, Users, Zap, ArrowRight, Pencil, Check, X, Trash2 } from 'lucide-react';
+import {
+  Plus, FileText, BarChart3, Users, Zap, ArrowRight, Pencil, Check, X, Trash2,
+  FolderPlus, Folder, MessageSquare, GitCompare, MoreHorizontal
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { UploadZone } from '@/components/documents/upload-zone';
 import { DocumentCard } from '@/components/documents/document-card';
 import { Modal } from '@/components/ui/modal';
+import { Menu, MenuItem, MenuDivider } from '@/components/ui/dropdown';
 import { api } from '@/lib/api';
 import { useStore } from '@/lib/store';
-import { formatDate } from '@/lib/utils';
+import { formatDate, cn } from '@/lib/utils';
 
 const quickActions = [
   {
@@ -29,19 +33,23 @@ const quickActions = [
     action: 'upload',
   },
   {
-    title: 'View Charts',
-    description: 'Browse and customize your charts',
-    icon: BarChart3,
+    title: 'Compare',
+    description: 'Compare documents and charts',
+    icon: GitCompare,
     color: 'bg-accent-coral/20 text-accent-coral',
-    action: 'charts',
+    action: 'compare',
   },
   {
-    title: 'Invite Team',
-    description: 'Collaborate with your colleagues',
-    icon: Users,
+    title: 'New Repository',
+    description: 'Create a folder for your project',
+    icon: FolderPlus,
     color: 'bg-accent-purple/20 text-accent-purple',
-    action: 'invite',
+    action: 'repository',
   },
+];
+
+const REPO_COLORS = [
+  '#7C9FF5', '#E879B9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#EC4899'
 ];
 
 export default function DashboardPage() {
@@ -49,21 +57,31 @@ export default function DashboardPage() {
   const { user, currentWorkspace } = useStore();
   const [documents, setDocuments] = useState<any[]>([]);
   const [recentAnalyses, setRecentAnalyses] = useState<any[]>([]);
+  const [repositories, setRepositories] = useState<any[]>([]);
   const [showUpload, setShowUpload] = useState(false);
+  const [showCreateRepo, setShowCreateRepo] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const editInputRef = useRef<HTMLInputElement>(null);
 
+  // New repository form
+  const [newRepoName, setNewRepoName] = useState('');
+  const [newRepoDescription, setNewRepoDescription] = useState('');
+  const [newRepoColor, setNewRepoColor] = useState(REPO_COLORS[0]);
+  const [creatingRepo, setCreatingRepo] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [docsRes, analysesRes] = await Promise.all([
+        const [docsRes, analysesRes, reposRes] = await Promise.all([
           api.getDocuments(),
           api.getAnalyses(),
+          api.getRepositories(),
         ]);
         setDocuments(docsRes.documents.slice(0, 4));
         setRecentAnalyses(analysesRes.analyses.slice(0, 5));
+        setRepositories(reposRes.repositories);
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -87,11 +105,11 @@ export default function DashboardPage() {
       case 'upload':
         setShowUpload(true);
         break;
-      case 'charts':
+      case 'compare':
         router.push('/dashboard/compare');
         break;
-      case 'invite':
-        router.push('/dashboard/settings');
+      case 'repository':
+        setShowCreateRepo(true);
         break;
     }
   };
@@ -106,6 +124,43 @@ export default function DashboardPage() {
       }
     }
     setShowUpload(false);
+  };
+
+  const handleCreateRepository = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRepoName.trim()) return;
+
+    setCreatingRepo(true);
+    try {
+      const { repository } = await api.createRepository({
+        name: newRepoName.trim(),
+        description: newRepoDescription.trim() || undefined,
+        color: newRepoColor,
+      });
+      setRepositories((prev) => [repository, ...prev]);
+      setShowCreateRepo(false);
+      setNewRepoName('');
+      setNewRepoDescription('');
+      setNewRepoColor(REPO_COLORS[0]);
+      router.push(`/dashboard/repositories/${repository.id}`);
+    } catch (error) {
+      console.error('Failed to create repository:', error);
+    } finally {
+      setCreatingRepo(false);
+    }
+  };
+
+  const handleDeleteRepository = async (repoId: string) => {
+    if (!confirm('Are you sure you want to delete this repository? This will not delete the contents, only remove them from the repository.')) {
+      return;
+    }
+
+    try {
+      await api.deleteRepository(repoId);
+      setRepositories((prev) => prev.filter((r) => r.id !== repoId));
+    } catch (error) {
+      console.error('Failed to delete repository:', error);
+    }
   };
 
   const startRename = (analysis: any, e: React.MouseEvent) => {
@@ -187,6 +242,110 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Repositories Section */}
+        <div className="mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Repositories</h2>
+            <Button variant="ghost" size="sm" onClick={() => setShowCreateRepo(true)}>
+              <Plus className="mr-1 h-4 w-4" />
+              New Repository
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-32 animate-pulse rounded-xl bg-background-secondary"
+                />
+              ))}
+            </div>
+          ) : repositories.length > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {repositories.map((repo) => (
+                <Card
+                  key={repo.id}
+                  className="group cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg"
+                  onClick={() => router.push(`/dashboard/repositories/${repo.id}`)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="flex h-10 w-10 items-center justify-center rounded-xl"
+                          style={{ backgroundColor: `${repo.color}20` }}
+                        >
+                          <Folder className="h-5 w-5" style={{ color: repo.color }} />
+                        </div>
+                        <div>
+                          <h3 className="font-medium">{repo.name}</h3>
+                          {repo.description && (
+                            <p className="text-sm text-foreground-tertiary line-clamp-1">
+                              {repo.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Menu
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        }
+                      >
+                        <MenuItem
+                          icon={<Trash2 className="h-4 w-4" />}
+                          variant="danger"
+                          onClick={() => handleDeleteRepository(repo.id)}
+                        >
+                          Delete
+                        </MenuItem>
+                      </Menu>
+                    </div>
+                    <div className="mt-4 flex items-center gap-4 text-sm text-foreground-tertiary">
+                      <span className="flex items-center gap-1">
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        {repo._count?.analyses || 0}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <FileText className="h-3.5 w-3.5" />
+                        {repo._count?.documents || 0}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <GitCompare className="h-3.5 w-3.5" />
+                        {repo._count?.comparisons || 0}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="p-8 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent-purple/20">
+                <Folder className="h-6 w-6 text-accent-purple" />
+              </div>
+              <h3 className="font-medium">No repositories yet</h3>
+              <p className="mt-1 text-sm text-foreground-tertiary">
+                Create repositories to organize your analyses, documents, and comparisons by project
+              </p>
+              <Button
+                className="mt-4"
+                onClick={() => setShowCreateRepo(true)}
+              >
+                <FolderPlus className="mr-2 h-4 w-4" />
+                Create Repository
+              </Button>
+            </Card>
+          )}
         </div>
 
         <div className="grid gap-8 lg:grid-cols-3">
@@ -371,6 +530,55 @@ export default function DashboardPage() {
         size="lg"
       >
         <UploadZone onUpload={handleUpload} />
+      </Modal>
+
+      {/* Create Repository Modal */}
+      <Modal
+        isOpen={showCreateRepo}
+        onClose={() => setShowCreateRepo(false)}
+        title="Create Repository"
+        description="Organize your analyses, documents, and comparisons by project"
+      >
+        <form onSubmit={handleCreateRepository} className="space-y-4">
+          <Input
+            label="Name"
+            placeholder="e.g., Q4 Research Project"
+            value={newRepoName}
+            onChange={(e) => setNewRepoName(e.target.value)}
+            required
+          />
+          <Input
+            label="Description (optional)"
+            placeholder="What is this repository for?"
+            value={newRepoDescription}
+            onChange={(e) => setNewRepoDescription(e.target.value)}
+          />
+          <div>
+            <label className="mb-2 block text-sm font-medium">Color</label>
+            <div className="flex flex-wrap gap-2">
+              {REPO_COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setNewRepoColor(color)}
+                  className={cn(
+                    'h-8 w-8 rounded-full transition-all',
+                    newRepoColor === color && 'ring-2 ring-offset-2 ring-offset-background'
+                  )}
+                  style={{ backgroundColor: color, outlineColor: color }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="ghost" onClick={() => setShowCreateRepo(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={creatingRepo}>
+              Create Repository
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

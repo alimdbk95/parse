@@ -14,6 +14,8 @@ import {
   ChevronLeft,
   Users,
   LogOut,
+  LayoutDashboard,
+  Folder,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -28,7 +30,8 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { href: '/dashboard', icon: MessageSquare, label: 'Chat' },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
+  { href: '/dashboard/chat', icon: MessageSquare, label: 'Chat' },
   { href: '/dashboard/documents', icon: FileText, label: 'Documents' },
   { href: '/dashboard/compare', icon: GitCompare, label: 'Compare' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
@@ -84,10 +87,14 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
       <nav className="flex-1 overflow-y-auto px-3 py-2">
         <div className="space-y-1">
           {navItems.map((item) => {
-            const isActive =
-              item.href === '/dashboard'
-                ? pathname === '/dashboard' || pathname.startsWith('/dashboard/chat')
-                : pathname.startsWith(item.href);
+            let isActive: boolean;
+            if ((item as any).exact) {
+              isActive = pathname === item.href || pathname.startsWith('/dashboard/repositories');
+            } else if (item.href === '/dashboard/chat') {
+              isActive = pathname.startsWith('/dashboard/chat');
+            } else {
+              isActive = pathname.startsWith(item.href);
+            }
 
             return (
               <Link

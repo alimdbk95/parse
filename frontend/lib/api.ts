@@ -410,6 +410,74 @@ class ApiClient {
   async getMessageComments(analysisId: string, messageId: string) {
     return this.request<{ comments: any[] }>(`/analyses/${analysisId}/messages/${messageId}/comments`);
   }
+
+  // Repositories
+  async getRepositories() {
+    return this.request<{ repositories: any[] }>('/repositories');
+  }
+
+  async createRepository(data: { name: string; description?: string; color?: string; icon?: string }) {
+    return this.request<{ repository: any }>('/repositories', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async getRepository(id: string) {
+    return this.request<{ repository: any }>(`/repositories/${id}`);
+  }
+
+  async updateRepository(id: string, data: { name?: string; description?: string; color?: string; icon?: string }) {
+    return this.request<{ repository: any }>(`/repositories/${id}`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async deleteRepository(id: string) {
+    return this.request<{ message: string }>(`/repositories/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addAnalysisToRepository(repositoryId: string, analysisId: string) {
+    return this.request<{ repositoryAnalysis: any }>(`/repositories/${repositoryId}/analyses`, {
+      method: 'POST',
+      body: { analysisId },
+    });
+  }
+
+  async removeAnalysisFromRepository(repositoryId: string, analysisId: string) {
+    return this.request<{ message: string }>(`/repositories/${repositoryId}/analyses/${analysisId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addDocumentToRepository(repositoryId: string, documentId: string) {
+    return this.request<{ repositoryDocument: any }>(`/repositories/${repositoryId}/documents`, {
+      method: 'POST',
+      body: { documentId },
+    });
+  }
+
+  async removeDocumentFromRepository(repositoryId: string, documentId: string) {
+    return this.request<{ message: string }>(`/repositories/${repositoryId}/documents/${documentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addComparisonToRepository(repositoryId: string, comparisonId: string) {
+    return this.request<{ repositoryComparison: any }>(`/repositories/${repositoryId}/comparisons`, {
+      method: 'POST',
+      body: { comparisonId },
+    });
+  }
+
+  async removeComparisonFromRepository(repositoryId: string, comparisonId: string) {
+    return this.request<{ message: string }>(`/repositories/${repositoryId}/comparisons/${comparisonId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new ApiClient();
