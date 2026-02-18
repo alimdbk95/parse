@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus, FileText, BarChart3, Users, Zap, ArrowRight, Pencil, Check, X, Trash2,
-  FolderPlus, Folder, MessageSquare, MoreHorizontal
+  FolderPlus, Folder, MessageSquare, MoreHorizontal, GitCompare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -200,19 +200,19 @@ export default function DashboardPage() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-6xl p-8">
+      <div className="mx-auto max-w-6xl p-4 md:p-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold">
             Welcome back, {user?.name?.split(' ')[0] || 'there'}
           </h1>
-          <p className="mt-2 text-foreground-secondary">
+          <p className="mt-1 md:mt-2 text-sm md:text-base text-foreground-secondary">
             Here's what's happening in your research workspace
           </p>
         </div>
 
         {/* Quick Actions */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-3">
+        <div className="mb-6 md:mb-8 grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
           {quickActions.map((action) => (
             <Card
               key={action.action}
@@ -235,7 +235,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Repositories Section */}
-        <div className="mb-8">
+        <div className="mb-6 md:mb-8">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Repositories</h2>
             <Button variant="ghost" size="sm" onClick={() => setShowCreateRepo(true)}>
@@ -245,7 +245,7 @@ export default function DashboardPage() {
           </div>
 
           {loading ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {[...Array(3)].map((_, i) => (
                 <div
                   key={i}
@@ -254,7 +254,7 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : repositories.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {repositories.map((repo) => (
                 <Card
                   key={repo.id}
@@ -338,7 +338,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div className="grid gap-6 md:gap-8 grid-cols-1 lg:grid-cols-3">
           {/* Recent Analyses */}
           <div className="lg:col-span-2">
             <div className="mb-4 flex items-center justify-between">

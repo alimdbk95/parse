@@ -30,7 +30,7 @@ interface SidebarProps {
 
 export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
   const pathname = usePathname();
-  const { user, sidebarOpen, setSidebarOpen, logout, currentWorkspace } = useStore();
+  const { user, sidebarOpen, setSidebarOpen, logout, currentWorkspace, isMobile } = useStore();
   const [showChats, setShowChats] = useState(true);
   const [showRepositories, setShowRepositories] = useState(true);
   const [repositories, setRepositories] = useState<any[]>([]);
@@ -50,10 +50,16 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
   const isDashboardActive = pathname === '/dashboard';
   const isSettingsActive = pathname.startsWith('/dashboard/settings');
 
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  };
+
   return (
     <motion.aside
       initial={false}
-      animate={{ width: sidebarOpen ? 280 : 72 }}
+      animate={{ width: isMobile ? 280 : sidebarOpen ? 280 : 72 }}
       className="flex h-screen flex-col border-r border-border bg-background-secondary"
     >
       {/* Header */}
@@ -96,6 +102,7 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
         {/* Dashboard Link */}
         <Link
           href="/dashboard"
+          onClick={handleLinkClick}
           className={cn(
             'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
             isDashboardActive
@@ -154,6 +161,7 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
                   <Link
                     key={analysis.id}
                     href={`/dashboard/chat/${analysis.id}`}
+                    onClick={handleLinkClick}
                     className={cn(
                       'block truncate rounded-lg px-3 py-1.5 text-sm transition-colors',
                       pathname === `/dashboard/chat/${analysis.id}`
@@ -206,6 +214,7 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
                   <Link
                     key={repo.id}
                     href={`/dashboard/repositories/${repo.id}`}
+                    onClick={handleLinkClick}
                     className={cn(
                       'flex items-center gap-2 truncate rounded-lg px-3 py-1.5 text-sm transition-colors',
                       pathname === `/dashboard/repositories/${repo.id}`
@@ -229,6 +238,7 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
         <div className="mt-2">
           <Link
             href="/dashboard/settings"
+            onClick={handleLinkClick}
             className={cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
               isSettingsActive

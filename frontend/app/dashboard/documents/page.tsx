@@ -110,31 +110,33 @@ export default function DocumentsPage() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-6xl p-8">
+      <div className="mx-auto max-w-6xl p-4 md:p-8">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-4 md:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Documents</h1>
-            <p className="mt-1 text-foreground-secondary">
+            <h1 className="text-xl md:text-2xl font-bold">Documents</h1>
+            <p className="mt-1 text-sm md:text-base text-foreground-secondary">
               Manage and organize your research documents
             </p>
           </div>
-          <Button onClick={() => setShowUpload(true)}>
+          <Button onClick={() => setShowUpload(true)} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             Upload
           </Button>
         </div>
 
         {/* Filters */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <Tabs
-            tabs={filterTabs}
-            activeTab={activeFilter}
-            onChange={setActiveFilter}
-          />
+        <div className="mb-4 md:mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="overflow-x-auto">
+            <Tabs
+              tabs={filterTabs}
+              activeTab={activeFilter}
+              onChange={setActiveFilter}
+            />
+          </div>
 
           <div className="flex items-center gap-3">
-            <div className="w-64">
+            <div className="flex-1 md:w-64">
               <Input
                 placeholder="Search documents..."
                 value={searchQuery}
@@ -142,7 +144,7 @@ export default function DocumentsPage() {
                 icon={<Search className="h-4 w-4" />}
               />
             </div>
-            <div className="flex rounded-lg border border-border">
+            <div className="flex rounded-lg border border-border shrink-0">
               <Button
                 variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                 size="icon-sm"

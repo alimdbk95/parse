@@ -273,7 +273,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Minimal Header */}
-      <header className="flex h-12 items-center justify-between border-b border-border/50 px-4">
+      <header className="flex h-12 items-center justify-between border-b border-border/50 px-2 md:px-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {isEditingTitle ? (
             <div className="flex items-center gap-2">
@@ -324,7 +324,7 @@ export default function ChatPage() {
         </div>
         <div className="flex items-center gap-1">
           {!canEdit && (
-            <span className="flex items-center gap-1 rounded-full bg-background-secondary px-2 py-0.5 text-xs text-foreground-tertiary mr-2">
+            <span className="hidden sm:flex items-center gap-1 rounded-full bg-background-secondary px-2 py-0.5 text-xs text-foreground-tertiary mr-2">
               <Eye className="h-3 w-3" />
               View only
             </span>

@@ -11,6 +11,17 @@ interface User {
   brandFont?: string;
 }
 
+interface Branding {
+  primaryColor: string;
+  accentColor: string;
+  textColor: string;
+  backgroundColor: string;
+  chartColors: string[];
+  font: string;
+  fontSize: string;
+  chartBackground: 'dark' | 'light' | 'transparent';
+}
+
 interface Workspace {
   id: string;
   name: string;
@@ -64,6 +75,8 @@ interface AppState {
   // UI State
   sidebarOpen: boolean;
   theme: 'dark' | 'light';
+  branding: Branding;
+  isMobile: boolean;
 
   // Actions
   setUser: (user: User | null) => void;
@@ -90,6 +103,8 @@ interface AppState {
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
   setTheme: (theme: 'dark' | 'light') => void;
+  setBranding: (branding: Partial<Branding>) => void;
+  setIsMobile: (isMobile: boolean) => void;
 }
 
 export const useStore = create<AppState>()(
@@ -107,6 +122,17 @@ export const useStore = create<AppState>()(
       messages: [],
       sidebarOpen: true,
       theme: 'dark',
+      isMobile: false,
+      branding: {
+        primaryColor: '#3b82f6',
+        accentColor: '#f97066',
+        textColor: '#ffffff',
+        backgroundColor: '#0a0a0f',
+        chartColors: ['#f97066', '#47d4c1', '#3b82f6', '#a3e635', '#f472b6'],
+        font: 'Inter',
+        fontSize: 'medium',
+        chartBackground: 'dark',
+      },
 
       // Auth actions
       setUser: (user) => set({ user, isAuthenticated: !!user }),
@@ -169,6 +195,9 @@ export const useStore = create<AppState>()(
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
       setTheme: (theme) => set({ theme }),
+      setBranding: (branding) =>
+        set((state) => ({ branding: { ...state.branding, ...branding } })),
+      setIsMobile: (isMobile) => set({ isMobile }),
     }),
     {
       name: 'parse-storage',

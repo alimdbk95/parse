@@ -153,7 +153,7 @@ export default function ChatListPage() {
   if (loading) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="mx-auto max-w-4xl p-8">
+        <div className="mx-auto max-w-4xl p-4 md:p-8">
           <div className="animate-pulse space-y-4">
             <div className="h-8 w-48 bg-background-secondary rounded" />
             <div className="h-12 bg-background-secondary rounded" />
@@ -172,19 +172,19 @@ export default function ChatListPage() {
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-4xl p-8">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Analyses</h1>
-            <p className="text-foreground-secondary">
+            <h1 className="text-xl md:text-2xl font-bold">Analyses</h1>
+            <p className="text-sm md:text-base text-foreground-secondary">
               Start a new analysis or continue an existing one
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setShowNewChat(true)}>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button variant="secondary" onClick={() => setShowNewChat(true)} className="w-full sm:w-auto">
               <FolderPlus className="mr-2 h-4 w-4" />
               New with Repository
             </Button>
-            <Button onClick={handleQuickCreate} loading={creating}>
+            <Button onClick={handleQuickCreate} loading={creating} className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Quick Start
             </Button>
@@ -192,7 +192,7 @@ export default function ChatListPage() {
         </div>
 
         {/* Search */}
-        <div className="relative mb-6">
+        <div className="relative mb-4 md:mb-6">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-tertiary" />
           <Input
             placeholder="Search analyses..."

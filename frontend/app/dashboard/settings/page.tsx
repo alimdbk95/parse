@@ -62,7 +62,7 @@ const sampleChartData = [
 ];
 
 export default function SettingsPage() {
-  const { user, setUser, currentWorkspace, theme, setTheme } = useStore();
+  const { user, setUser, currentWorkspace, theme, setTheme, branding, setBranding } = useStore();
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
@@ -76,18 +76,16 @@ export default function SettingsPage() {
   // Profile state
   const [name, setName] = useState(user?.name || '');
 
-  // Branding state
+  // Branding state - initialized from store
   const [logo, setLogo] = useState<string | null>(null);
-  const [chartColors, setChartColors] = useState([
-    '#f97066', '#47d4c1', '#3b82f6', '#a3e635', '#f472b6'
-  ]);
-  const [primaryColor, setPrimaryColor] = useState('#3b82f6');
-  const [accentColor, setAccentColor] = useState('#f97066');
-  const [textColor, setTextColor] = useState('#ffffff');
-  const [backgroundColor, setBackgroundColor] = useState('#0f0f0f');
-  const [selectedFont, setSelectedFont] = useState('Inter');
-  const [fontSize, setFontSize] = useState('medium');
-  const [chartBackground, setChartBackground] = useState<'dark' | 'light' | 'transparent'>('dark');
+  const [chartColors, setChartColors] = useState(branding.chartColors);
+  const [primaryColor, setPrimaryColor] = useState(branding.primaryColor);
+  const [accentColor, setAccentColor] = useState(branding.accentColor);
+  const [textColor, setTextColor] = useState(branding.textColor);
+  const [backgroundColor, setBackgroundColor] = useState(branding.backgroundColor);
+  const [selectedFont, setSelectedFont] = useState(branding.font);
+  const [fontSize, setFontSize] = useState(branding.fontSize);
+  const [chartBackground, setChartBackground] = useState<'dark' | 'light' | 'transparent'>(branding.chartBackground);
 
   useEffect(() => {
     if (currentWorkspace) {
@@ -152,6 +150,18 @@ export default function SettingsPage() {
         chartBackground,
         theme,
       });
+
+      // Update the store so changes apply globally
+      setBranding({
+        chartColors,
+        font: selectedFont,
+        fontSize,
+        primaryColor,
+        accentColor,
+        textColor,
+        backgroundColor,
+        chartBackground,
+      });
     } catch (error) {
       console.error('Failed to update branding:', error);
     } finally {
@@ -207,11 +217,11 @@ export default function SettingsPage() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-4xl p-8">
+      <div className="mx-auto max-w-4xl p-4 md:p-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold">Settings</h1>
-          <p className="mt-1 text-foreground-secondary">
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-xl md:text-2xl font-bold">Settings</h1>
+          <p className="mt-1 text-sm md:text-base text-foreground-secondary">
             Manage your account, branding, and workspace preferences
           </p>
         </div>
@@ -301,7 +311,7 @@ export default function SettingsPage() {
 
           {/* Branding Tab */}
           <TabPanel id="branding" activeTab={activeTab}>
-            <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <div className="mt-4 md:mt-6 grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2">
               {/* Logo & Identity */}
               <Card>
                 <CardHeader>
