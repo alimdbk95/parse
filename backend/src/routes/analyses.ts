@@ -78,7 +78,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     await prisma.message.create({
       data: {
         role: 'assistant',
-        content: `DDDDDD`,
+        content: `Hello! I'm ready to help you analyze your data. You can upload documents or ask me questions to get started.`,
         analysisId: analysis.id,
       },
     });

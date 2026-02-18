@@ -271,102 +271,93 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-full">
-      {/* Main Chat Area */}
-      <div className="flex flex-1 flex-col">
-        {/* Header */}
-        <header className="flex h-14 items-center justify-between border-b border-border px-4">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {isEditingTitle ? (
-              <div className="flex items-center gap-2 flex-1">
-                <Input
-                  value={editedTitle}
-                  onChange={(e) => setEditedTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleEditTitle();
-                    if (e.key === 'Escape') {
-                      setIsEditingTitle(false);
-                      setEditedTitle(analysis?.title || '');
-                    }
-                  }}
-                  className="h-8 max-w-xs"
-                  autoFocus
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={handleEditTitle}
-                >
-                  <Check className="h-4 w-4 text-green-500" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0"
-                  onClick={() => {
+    <div className="flex h-full flex-col bg-background">
+      {/* Minimal Header */}
+      <header className="flex h-12 items-center justify-between border-b border-border/50 px-4">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          {isEditingTitle ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleEditTitle();
+                  if (e.key === 'Escape') {
                     setIsEditingTitle(false);
                     setEditedTitle(analysis?.title || '');
-                  }}
+                  }
+                }}
+                className="h-8 max-w-xs"
+                autoFocus
+              />
+              <button
+                className="p-1.5 rounded hover:bg-background-tertiary"
+                onClick={handleEditTitle}
+              >
+                <Check className="h-4 w-4 text-green-500" />
+              </button>
+              <button
+                className="p-1.5 rounded hover:bg-background-tertiary"
+                onClick={() => {
+                  setIsEditingTitle(false);
+                  setEditedTitle(analysis?.title || '');
+                }}
+              >
+                <X className="h-4 w-4 text-red-500" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 group">
+              <h1 className="text-sm font-medium text-foreground truncate">
+                {analysis?.title || 'New Analysis'}
+              </h1>
+              {canEdit && (
+                <button
+                  className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-background-tertiary transition-all"
+                  onClick={() => setIsEditingTitle(true)}
                 >
-                  <X className="h-4 w-4 text-red-500" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 group">
-                <h1 className="font-semibold truncate">{analysis?.title || 'Analysis'}</h1>
-                {canEdit && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => setIsEditingTitle(true)}
-                  >
-                    <Pencil className="h-3.5 w-3.5 text-foreground-tertiary" />
-                  </Button>
-                )}
-              </div>
-            )}
-            {documents.length > 0 && !isEditingTitle && (
-              <span className="rounded-full bg-background-secondary px-2 py-0.5 text-xs text-foreground-tertiary shrink-0">
-                {documents.length} doc{documents.length !== 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {!canEdit && (
-              <span className="flex items-center gap-1 rounded-full bg-background-secondary px-2 py-0.5 text-xs text-foreground-tertiary">
-                <Eye className="h-3 w-3" />
-                View only
-              </span>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleOpenSaveToRepo}
-            >
-              <FolderPlus className="mr-1 h-4 w-4" />
-              Save to Repository
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleExportPdf}
-              disabled={exporting}
-            >
-              <Download className="mr-1 h-4 w-4" />
-              {exporting ? 'Exporting...' : 'Export PDF'}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowDocuments(true)}
-            >
-              <Paperclip className="mr-1 h-4 w-4" />
-              Documents
-            </Button>
-          </div>
-        </header>
+                  <Pencil className="h-3 w-3 text-foreground-tertiary" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {!canEdit && (
+            <span className="flex items-center gap-1 rounded-full bg-background-secondary px-2 py-0.5 text-xs text-foreground-tertiary mr-2">
+              <Eye className="h-3 w-3" />
+              View only
+            </span>
+          )}
+          <button
+            onClick={handleOpenSaveToRepo}
+            className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors"
+            title="Save to Repository"
+          >
+            <FolderPlus className="h-4 w-4" />
+          </button>
+          <button
+            onClick={handleExportPdf}
+            disabled={exporting}
+            className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors disabled:opacity-50"
+            title="Export PDF"
+          >
+            <Download className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setShowDocuments(true)}
+            className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors"
+            title="Documents"
+          >
+            <Paperclip className="h-4 w-4" />
+          </button>
+          {documents.length > 0 && (
+            <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+              {documents.length}
+            </span>
+          )}
+        </div>
+      </header>
 
         {/* Messages */}
         <MessageList
@@ -381,19 +372,13 @@ export default function ChatPage() {
           readOnly={!canEdit}
         />
 
-        {/* Input */}
-        <ChatInput
-          onSend={handleSendMessage}
-          onAttach={() => setShowDocuments(true)}
-          disabled={sending || !canEdit}
-          attachedFiles={documents.map((d) => ({
-            id: d.id,
-            name: d.name,
-            type: d.type,
-          }))}
-          placeholder={canEdit ? undefined : 'View only - you cannot send messages'}
-        />
-      </div>
+      {/* Input */}
+      <ChatInput
+        onSend={handleSendMessage}
+        onAttach={() => setShowDocuments(true)}
+        disabled={sending || !canEdit}
+        placeholder={canEdit ? 'Ask about your data...' : 'View only - you cannot send messages'}
+      />
 
       {/* Documents Modal */}
       <Modal

@@ -32,7 +32,7 @@ interface SidebarProps {
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { href: '/dashboard/chat', icon: MessageSquare, label: 'Chat' },
-  { href: '/dashboard/documents', icon: FileText, label: 'Documents' },
+  { href: '/dashboard/repositories', icon: Folder, label: 'Repositories' },
   { href: '/dashboard/compare', icon: GitCompare, label: 'Compare' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
@@ -89,9 +89,11 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
           {navItems.map((item) => {
             let isActive: boolean;
             if ((item as any).exact) {
-              isActive = pathname === item.href || pathname.startsWith('/dashboard/repositories');
+              isActive = pathname === item.href;
             } else if (item.href === '/dashboard/chat') {
               isActive = pathname.startsWith('/dashboard/chat');
+            } else if (item.href === '/dashboard/repositories') {
+              isActive = pathname.startsWith('/dashboard/repositories');
             } else {
               isActive = pathname.startsWith(item.href);
             }

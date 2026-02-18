@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useRef, KeyboardEvent } from 'react';
-import { Send, Paperclip, Sparkles, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowUp, Paperclip, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AttachedFile {
@@ -26,7 +25,7 @@ export function ChatInput({
   attachedFiles = [],
   onRemoveFile,
   disabled = false,
-  placeholder = 'Ask Parse for more insights...',
+  placeholder = 'Ask about your data...',
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -58,47 +57,45 @@ export function ChatInput({
   };
 
   return (
-    <div className="border-t border-border bg-background p-4">
-      {/* Attached files */}
-      {attachedFiles.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-2">
-          {attachedFiles.map((file) => (
-            <div
-              key={file.id}
-              className="flex items-center gap-2 rounded-lg bg-background-secondary px-3 py-1.5 text-sm"
-            >
-              <span className="truncate max-w-[200px]">{file.name}</span>
-              {onRemoveFile && (
-                <button
-                  onClick={() => onRemoveFile(file.id)}
-                  className="text-foreground-tertiary hover:text-foreground"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="flex items-end gap-3">
-        {/* Attach button */}
-        {onAttach && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onAttach}
-            className="text-foreground-tertiary hover:text-foreground flex-shrink-0"
-          >
-            <Paperclip className="h-5 w-5" />
-          </Button>
+    <div className="border-t border-border bg-background">
+      <div className="max-w-3xl mx-auto p-4">
+        {/* Attached files */}
+        {attachedFiles.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {attachedFiles.map((file) => (
+              <div
+                key={file.id}
+                className="flex items-center gap-2 rounded-lg bg-background-secondary px-3 py-1.5 text-sm border border-border"
+              >
+                <Paperclip className="h-3.5 w-3.5 text-foreground-tertiary" />
+                <span className="truncate max-w-[200px]">{file.name}</span>
+                {onRemoveFile && (
+                  <button
+                    onClick={() => onRemoveFile(file.id)}
+                    className="text-foreground-tertiary hover:text-foreground ml-1"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         )}
 
-        {/* Input area */}
-        <div className="relative flex-1">
-          <div className="absolute left-3 top-3 text-foreground-tertiary">
-            <Sparkles className="h-4 w-4" />
-          </div>
+        {/* Input container - Claude-style */}
+        <div className="relative flex items-end gap-2 rounded-2xl border border-border bg-background-secondary p-2">
+          {/* Attach button */}
+          {onAttach && (
+            <button
+              onClick={onAttach}
+              className="flex-shrink-0 p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors"
+              title="Attach files"
+            >
+              <Paperclip className="h-5 w-5" />
+            </button>
+          )}
+
+          {/* Textarea */}
           <textarea
             ref={textareaRef}
             value={message}
@@ -108,29 +105,33 @@ export function ChatInput({
             disabled={disabled}
             rows={1}
             className={cn(
-              'w-full resize-none rounded-xl border border-border bg-background-secondary py-3 pl-10 pr-4 text-sm',
+              'flex-1 resize-none bg-transparent py-2 px-2 text-foreground',
               'placeholder:text-foreground-tertiary',
-              'focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary',
+              'focus:outline-none',
               'disabled:cursor-not-allowed disabled:opacity-50',
-              'max-h-[200px]'
+              'max-h-[200px] min-h-[40px]'
             )}
           />
+
+          {/* Send button */}
+          <button
+            onClick={handleSubmit}
+            disabled={!message.trim() || disabled}
+            className={cn(
+              'flex-shrink-0 p-2 rounded-lg transition-all',
+              message.trim() && !disabled
+                ? 'bg-primary text-white hover:bg-primary/90'
+                : 'bg-background-tertiary text-foreground-tertiary cursor-not-allowed'
+            )}
+          >
+            <ArrowUp className="h-5 w-5" />
+          </button>
         </div>
 
-        {/* Send button */}
-        <Button
-          onClick={handleSubmit}
-          disabled={!message.trim() || disabled}
-          size="icon"
-          className="flex-shrink-0"
-        >
-          <Send className="h-4 w-4" />
-        </Button>
+        <p className="mt-2 text-center text-xs text-foreground-tertiary">
+          Parse can analyze your documents and generate insights. Press Enter to send.
+        </p>
       </div>
-
-      <p className="mt-2 text-center text-xs text-foreground-tertiary">
-        Parse can analyze documents and generate visualizations. Press Enter to send.
-      </p>
     </div>
   );
 }
