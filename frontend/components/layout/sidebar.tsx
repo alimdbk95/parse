@@ -1,16 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare,
-  FileText,
-  BarChart3,
   Settings,
   Plus,
   ChevronLeft,
+  ChevronDown,
   Users,
   LogOut,
   LayoutDashboard,
@@ -22,23 +21,34 @@ import { Avatar } from '@/components/ui/avatar';
 import { Logo, LogoIcon } from '@/components/ui/logo';
 import { Menu, MenuItem, MenuDivider } from '@/components/ui/dropdown';
 import { useStore } from '@/lib/store';
+import { api } from '@/lib/api';
 
 interface SidebarProps {
   analyses?: any[];
   onNewAnalysis?: () => void;
 }
 
-const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-  { href: '/dashboard/chat', icon: MessageSquare, label: 'Chat' },
-  { href: '/dashboard/repositories', icon: Folder, label: 'Repositories' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
-];
-
 export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
   const pathname = usePathname();
   const { user, sidebarOpen, setSidebarOpen, logout, currentWorkspace } = useStore();
-  const [showAnalyses, setShowAnalyses] = useState(true);
+  const [showChats, setShowChats] = useState(true);
+  const [showRepositories, setShowRepositories] = useState(true);
+  const [repositories, setRepositories] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchRepositories = async () => {
+      try {
+        const { repositories } = await api.getRepositories();
+        setRepositories(repositories);
+      } catch (error) {
+        console.error('Failed to fetch repositories:', error);
+      }
+    };
+    fetchRepositories();
+  }, []);
+
+  const isDashboardActive = pathname === '/dashboard';
+  const isSettingsActive = pathname.startsWith('/dashboard/settings');
 
   return (
     <motion.aside
@@ -83,89 +93,163 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-2">
-        <div className="space-y-1">
-          {navItems.map((item) => {
-            let isActive: boolean;
-            if ((item as any).exact) {
-              isActive = pathname === item.href;
-            } else if (item.href === '/dashboard/chat') {
-              isActive = pathname.startsWith('/dashboard/chat');
-            } else if (item.href === '/dashboard/repositories') {
-              isActive = pathname.startsWith('/dashboard/repositories');
-            } else {
-              isActive = pathname.startsWith(item.href);
-            }
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-foreground-secondary hover:bg-background-tertiary hover:text-foreground'
-                )}
+        {/* Dashboard Link */}
+        <Link
+          href="/dashboard"
+          className={cn(
+            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+            isDashboardActive
+              ? 'bg-primary/10 text-primary'
+              : 'text-foreground-secondary hover:bg-background-tertiary hover:text-foreground'
+          )}
+        >
+          <LayoutDashboard className="h-5 w-5 flex-shrink-0" />
+          <AnimatePresence>
+            {sidebarOpen && (
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
               >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
-                <AnimatePresence>
-                  {sidebarOpen && (
-                    <motion.span
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                    >
-                      {item.label}
-                    </motion.span>
+                Dashboard
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </Link>
+
+        {/* Chats Section */}
+        <div className="mt-4">
+          <button
+            onClick={() => setShowChats(!showChats)}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              pathname.startsWith('/dashboard/chat')
+                ? 'bg-primary/10 text-primary'
+                : 'text-foreground-secondary hover:bg-background-tertiary hover:text-foreground'
+            )}
+          >
+            <MessageSquare className="h-5 w-5 flex-shrink-0" />
+            {sidebarOpen && (
+              <>
+                <span className="flex-1 text-left">Chats</span>
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 transition-transform',
+                    !showChats && '-rotate-90'
                   )}
-                </AnimatePresence>
-              </Link>
-            );
-          })}
+                />
+              </>
+            )}
+          </button>
+
+          <AnimatePresence>
+            {sidebarOpen && showChats && analyses.length > 0 && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="ml-4 mt-1 space-y-1 overflow-hidden border-l border-border pl-3"
+              >
+                {analyses.map((analysis) => (
+                  <Link
+                    key={analysis.id}
+                    href={`/dashboard/chat/${analysis.id}`}
+                    className={cn(
+                      'block truncate rounded-lg px-3 py-1.5 text-sm transition-colors',
+                      pathname === `/dashboard/chat/${analysis.id}`
+                        ? 'bg-background-tertiary text-foreground'
+                        : 'text-foreground-tertiary hover:bg-background-tertiary hover:text-foreground'
+                    )}
+                  >
+                    {analysis.title}
+                  </Link>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Recent Analyses */}
-        {sidebarOpen && analyses.length > 0 && (
-          <div className="mt-6">
-            <button
-              onClick={() => setShowAnalyses(!showAnalyses)}
-              className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider text-foreground-tertiary"
-            >
-              Recent Analyses
-              <ChevronLeft
-                className={cn(
-                  'h-3 w-3 transition-transform',
-                  showAnalyses && '-rotate-90'
-                )}
-              />
-            </button>
+        {/* Repositories Section */}
+        <div className="mt-2">
+          <button
+            onClick={() => setShowRepositories(!showRepositories)}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              pathname.startsWith('/dashboard/repositories')
+                ? 'bg-primary/10 text-primary'
+                : 'text-foreground-secondary hover:bg-background-tertiary hover:text-foreground'
+            )}
+          >
+            <Folder className="h-5 w-5 flex-shrink-0" />
+            {sidebarOpen && (
+              <>
+                <span className="flex-1 text-left">Repositories</span>
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 transition-transform',
+                    !showRepositories && '-rotate-90'
+                  )}
+                />
+              </>
+            )}
+          </button>
+
+          <AnimatePresence>
+            {sidebarOpen && showRepositories && repositories.length > 0 && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="ml-4 mt-1 space-y-1 overflow-hidden border-l border-border pl-3"
+              >
+                {repositories.map((repo) => (
+                  <Link
+                    key={repo.id}
+                    href={`/dashboard/repositories/${repo.id}`}
+                    className={cn(
+                      'flex items-center gap-2 truncate rounded-lg px-3 py-1.5 text-sm transition-colors',
+                      pathname === `/dashboard/repositories/${repo.id}`
+                        ? 'bg-background-tertiary text-foreground'
+                        : 'text-foreground-tertiary hover:bg-background-tertiary hover:text-foreground'
+                    )}
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: repo.color || '#7C9FF5' }}
+                    />
+                    <span className="truncate">{repo.name}</span>
+                  </Link>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Settings Link */}
+        <div className="mt-2">
+          <Link
+            href="/dashboard/settings"
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              isSettingsActive
+                ? 'bg-primary/10 text-primary'
+                : 'text-foreground-secondary hover:bg-background-tertiary hover:text-foreground'
+            )}
+          >
+            <Settings className="h-5 w-5 flex-shrink-0" />
             <AnimatePresence>
-              {showAnalyses && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="space-y-1 overflow-hidden"
+              {sidebarOpen && (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                 >
-                  {analyses.slice(0, 10).map((analysis) => (
-                    <Link
-                      key={analysis.id}
-                      href={`/dashboard/chat/${analysis.id}`}
-                      className={cn(
-                        'block truncate rounded-lg px-3 py-2 text-sm transition-colors',
-                        pathname === `/dashboard/chat/${analysis.id}`
-                          ? 'bg-background-tertiary text-foreground'
-                          : 'text-foreground-secondary hover:bg-background-tertiary hover:text-foreground'
-                      )}
-                    >
-                      {analysis.title}
-                    </Link>
-                  ))}
-                </motion.div>
+                  Settings
+                </motion.span>
               )}
             </AnimatePresence>
-          </div>
-        )}
+          </Link>
+        </div>
       </nav>
 
       {/* Workspace Selector */}
