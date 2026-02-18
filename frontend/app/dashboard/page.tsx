@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus, FileText, BarChart3, Users, Zap, ArrowRight, Pencil, Check, X, Trash2,
-  FolderPlus, Folder, MessageSquare, GitCompare, MoreHorizontal
+  FolderPlus, Folder, MessageSquare, MoreHorizontal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,13 +31,6 @@ const quickActions = [
     icon: FileText,
     color: 'bg-accent-teal/20 text-accent-teal',
     action: 'upload',
-  },
-  {
-    title: 'Compare',
-    description: 'Compare documents and charts',
-    icon: GitCompare,
-    color: 'bg-accent-coral/20 text-accent-coral',
-    action: 'compare',
   },
   {
     title: 'New Repository',
@@ -104,9 +97,6 @@ export default function DashboardPage() {
         break;
       case 'upload':
         setShowUpload(true);
-        break;
-      case 'compare':
-        router.push('/dashboard/compare');
         break;
       case 'repository':
         setShowCreateRepo(true);
@@ -222,7 +212,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-8 grid gap-4 sm:grid-cols-3">
           {quickActions.map((action) => (
             <Card
               key={action.action}

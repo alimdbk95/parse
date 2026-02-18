@@ -8,7 +8,6 @@ import {
   MessageSquare,
   FileText,
   BarChart3,
-  GitCompare,
   Settings,
   Plus,
   ChevronLeft,
@@ -33,7 +32,6 @@ const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', exact: true },
   { href: '/dashboard/chat', icon: MessageSquare, label: 'Chat' },
   { href: '/dashboard/repositories', icon: Folder, label: 'Repositories' },
-  { href: '/dashboard/compare', icon: GitCompare, label: 'Compare' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
 
