@@ -117,7 +117,7 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
           </AnimatePresence>
         </Link>
 
-        {/* Chats Section */}
+        {/* Analyses Section */}
         <div className="mt-4">
           <button
             onClick={() => setShowChats(!showChats)}
@@ -131,7 +131,7 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
             <MessageSquare className="h-5 w-5 flex-shrink-0" />
             {sidebarOpen && (
               <>
-                <span className="flex-1 text-left">Chats</span>
+                <span className="flex-1 text-left">Analyses</span>
                 <ChevronDown
                   className={cn(
                     'h-4 w-4 transition-transform',
