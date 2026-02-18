@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { api } from '@/lib/api';
 
