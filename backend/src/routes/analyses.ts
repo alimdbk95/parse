@@ -78,17 +78,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     await prisma.message.create({
       data: {
         role: 'assistant',
-        content: `Welcome to your analysis session! I'm Parse, your research assistant.
-
-${documentIds?.length ? `I've loaded ${documentIds.length} document(s) for analysis.` : 'Upload documents or ask me anything to get started.'}
-
-I can help you:
-- Extract insights from your documents
-- Generate charts and visualizations
-- Compare data across multiple sources
-- Answer specific questions about your research
-
-What would you like to explore?`,
+        content: `DDDDDD`,
         analysisId: analysis.id,
       },
     });
