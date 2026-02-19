@@ -148,8 +148,9 @@ export default function ChatPage() {
       try {
         const { document } = await api.uploadDocument(file, currentWorkspace?.id);
         setAvailableDocs((prev) => [document, ...prev]);
-        // Automatically add to analysis
-        await handleAddDocument(document.id);
+        // Link to analysis and add to documents list
+        await api.addDocumentToAnalysis(analysisId, document.id);
+        setDocuments((prev) => [...prev, document]);
       } catch (error) {
         console.error('Upload failed:', error);
       }
