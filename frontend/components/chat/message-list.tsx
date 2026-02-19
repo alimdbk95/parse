@@ -47,8 +47,8 @@ export function MessageList({
     },
     {
       icon: BarChart3,
-      title: 'Generate Visualizations',
-      description: 'Create charts and graphs from your data',
+      title: 'Paste & Visualize',
+      description: 'Paste CSV, JSON, or tabular data directly to analyze',
     },
     {
       icon: TrendingUp,
@@ -78,7 +78,7 @@ export function MessageList({
               How can I help you analyze today?
             </h1>
             <p className="text-foreground-secondary text-lg mb-10">
-              Upload documents or ask questions to begin your research analysis
+              Upload documents, paste data, or ask questions to begin your analysis
             </p>
 
             {/* Capability cards */}

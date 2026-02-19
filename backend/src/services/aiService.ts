@@ -87,10 +87,13 @@ class ClaudeAIService {
 
 Your capabilities:
 1. Analyze uploaded documents (PDF, CSV, Excel, etc.)
-2. Extract key data points and patterns
-3. Generate charts and visualizations
-4. Compare data across documents
-5. Answer questions about the content
+2. Analyze data pasted directly in the chat (CSV, JSON, tables, code)
+3. Extract key data points and patterns
+4. Generate charts and visualizations
+5. Compare data across documents
+6. Answer questions about the content
+
+When users paste data directly in their message (CSV, JSON, tabular data, arrays, etc.), analyze it just like you would analyze an uploaded document. Parse the data, identify patterns, and offer to create visualizations.
 
 When the user asks for a chart or visualization, respond with your analysis AND include a JSON block at the end of your response in this exact format:
 \`\`\`chart
@@ -163,6 +166,62 @@ ${documentContext}`;
     }
   }
 
+  private detectPastedData(message: string): { hasData: boolean; dataType: string | null; parsedData: any[] | null } {
+    // Check for JSON array
+    const jsonArrayMatch = message.match(/\[[\s\S]*?\]/);
+    if (jsonArrayMatch) {
+      try {
+        const parsed = JSON.parse(jsonArrayMatch[0]);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return { hasData: true, dataType: 'json', parsedData: parsed };
+        }
+      } catch (e) {}
+    }
+
+    // Check for JSON object
+    const jsonObjectMatch = message.match(/\{[\s\S]*?\}/);
+    if (jsonObjectMatch) {
+      try {
+        const parsed = JSON.parse(jsonObjectMatch[0]);
+        if (typeof parsed === 'object') {
+          return { hasData: true, dataType: 'json', parsedData: [parsed] };
+        }
+      } catch (e) {}
+    }
+
+    // Check for CSV-like data (lines with commas or tabs)
+    const lines = message.split('\n').filter(line => line.trim());
+    if (lines.length >= 2) {
+      const delimiter = lines[0].includes('\t') ? '\t' : ',';
+      const firstLineFields = lines[0].split(delimiter).length;
+      const hasConsistentColumns = lines.every(line => {
+        const fields = line.split(delimiter).length;
+        return Math.abs(fields - firstLineFields) <= 1;
+      });
+
+      if (hasConsistentColumns && firstLineFields >= 2) {
+        // Parse CSV
+        const headers = lines[0].split(delimiter).map(h => h.trim());
+        const data = lines.slice(1).map(line => {
+          const values = line.split(delimiter).map(v => v.trim());
+          const row: any = {};
+          headers.forEach((header, i) => {
+            const value = values[i];
+            // Try to parse as number
+            const num = parseFloat(value);
+            row[header] = isNaN(num) ? value : num;
+          });
+          return row;
+        });
+        if (data.length > 0) {
+          return { hasData: true, dataType: 'csv', parsedData: data };
+        }
+      }
+    }
+
+    return { hasData: false, dataType: null, parsedData: null };
+  }
+
   private generateMockResponse(
     userMessage: string,
     context: AnalysisContext
@@ -170,9 +229,67 @@ ${documentContext}`;
     const lowerMessage = userMessage.toLowerCase();
     const hasDocuments = context.documents.length > 0;
 
+    // Check for pasted data
+    const { hasData, dataType, parsedData } = this.detectPastedData(userMessage);
+
     // Check if chart is requested
     const chartKeywords = ['chart', 'graph', 'plot', 'visualize', 'visualization', 'show me'];
     const wantsChart = chartKeywords.some(keyword => lowerMessage.includes(keyword));
+
+    // If pasted data is detected, use it for visualization
+    if (hasData && parsedData && parsedData.length > 0) {
+      let chartType: 'bar' | 'line' | 'pie' | 'area' = 'bar';
+      if (lowerMessage.includes('line')) chartType = 'line';
+      else if (lowerMessage.includes('pie')) chartType = 'pie';
+      else if (lowerMessage.includes('area')) chartType = 'area';
+
+      // Try to format the data for charting
+      const keys = Object.keys(parsedData[0]);
+      const nameKey = keys.find(k => typeof parsedData[0][k] === 'string') || keys[0];
+      const valueKeys = keys.filter(k => typeof parsedData[0][k] === 'number');
+
+      // Normalize data for charts
+      const chartData = parsedData.slice(0, 20).map(item => {
+        const row: any = { name: String(item[nameKey] || 'Item') };
+        if (valueKeys.length > 0) {
+          valueKeys.forEach(key => {
+            row[key] = item[key];
+          });
+          if (valueKeys.length === 1) {
+            row.value = item[valueKeys[0]];
+          }
+        } else {
+          // If no numeric values, try to use the first non-name field
+          const otherKey = keys.find(k => k !== nameKey);
+          if (otherKey) {
+            const val = parseFloat(item[otherKey]);
+            row.value = isNaN(val) ? 0 : val;
+          }
+        }
+        return row;
+      });
+
+      const dataDescription = `Detected ${parsedData.length} rows of ${dataType?.toUpperCase()} data with fields: ${keys.join(', ')}`;
+
+      return {
+        text: `I've detected and analyzed your pasted data!
+
+**Data Summary:**
+- Format: ${dataType?.toUpperCase()}
+- Rows: ${parsedData.length}
+- Fields: ${keys.join(', ')}
+
+${wantsChart ? `I've created a ${chartType} chart from your data:` : `Here's a visualization of your data:`}
+
+**Note:** Running in demo mode. Add \`ANTHROPIC_API_KEY\` for deeper AI analysis.`,
+        chart: {
+          type: chartType,
+          title: `Data Visualization`,
+          data: chartData,
+          description: dataDescription,
+        },
+      };
+    }
 
     if (wantsChart) {
       let chartType: 'bar' | 'line' | 'pie' | 'area' = 'bar';
@@ -230,9 +347,17 @@ The chart below shows sample data for demonstration purposes.`,
 
 To get started:
 1. **Upload documents** - PDF, CSV, Excel files
-2. **Ask questions** - I'll analyze your documents
-3. **Request charts** - Say "create a bar chart" or "show me a pie chart"
-4. **Compare data** - Upload multiple documents to compare
+2. **Paste data** - Paste CSV, JSON, or tabular data directly
+3. **Ask questions** - I'll analyze your data
+4. **Request charts** - Say "create a bar chart" or "show me a pie chart"
+
+**Example - paste data like this:**
+\`\`\`
+Month,Sales,Profit
+Jan,4000,1200
+Feb,3000,900
+Mar,5000,1800
+\`\`\`
 
 What would you like to explore?`,
       };

@@ -129,7 +129,7 @@ export function ChatInput({
         </div>
 
         <p className="mt-2 text-center text-xs text-foreground-tertiary">
-          Parse can analyze your documents and generate insights. Press Enter to send.
+          Paste CSV, JSON, or tabular data directly, or upload documents. Press Enter to send.
         </p>
       </div>
     </div>
