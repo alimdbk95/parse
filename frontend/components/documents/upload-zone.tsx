@@ -16,10 +16,16 @@ interface UploadZoneProps {
 
 const defaultAccept = {
   'application/pdf': ['.pdf'],
+  'application/x-pdf': ['.pdf'],
+  '.pdf': ['.pdf'],
   'text/csv': ['.csv'],
+  'application/csv': ['.csv'],
+  '.csv': ['.csv'],
   'application/vnd.ms-excel': ['.xls'],
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-  'image/*': ['.png', '.jpg', '.jpeg', '.gif'],
+  '.xls': ['.xls'],
+  '.xlsx': ['.xlsx'],
+  'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
   'text/plain': ['.txt'],
   'application/json': ['.json'],
 };

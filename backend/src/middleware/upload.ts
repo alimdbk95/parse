@@ -43,14 +43,23 @@ const fileFilter = (
 ) => {
   const allowedTypes = [
     'application/pdf',
+    'application/x-pdf',
+    'application/acrobat',
+    'application/vnd.pdf',
+    'text/pdf',
+    'text/x-pdf',
     'text/csv',
+    'application/csv',
+    'text/comma-separated-values',
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'image/png',
     'image/jpeg',
     'image/gif',
+    'image/webp',
     'text/plain',
     'application/json',
+    'application/octet-stream', // Allow generic binary for edge cases
   ];
 
   if (allowedTypes.includes(file.mimetype)) {
