@@ -64,7 +64,7 @@ export const upload = multer({
   storage: isS3Enabled ? memoryStorage : diskStorage,
   fileFilter,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
+    fileSize: 500 * 1024 * 1024, // 500MB limit
   },
 });
 

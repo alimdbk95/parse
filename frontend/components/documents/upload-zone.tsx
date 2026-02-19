@@ -34,7 +34,7 @@ interface FilePreview {
 export function UploadZone({
   onUpload,
   maxFiles = 10,
-  maxSize = 50 * 1024 * 1024, // 50MB
+  maxSize = 500 * 1024 * 1024, // 500MB
   accept = defaultAccept,
   className,
 }: UploadZoneProps) {
