@@ -125,6 +125,38 @@ class ApiClient {
     });
   }
 
+  async downloadDocument(id: string, filename: string) {
+    const token = this.getToken();
+    const response = await fetch(`${API_URL}/documents/${id}/download`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to download document');
+    }
+
+    // Check if response is JSON (S3 signed URL) or binary (local file)
+    const contentType = response.headers.get('content-type');
+    if (contentType?.includes('application/json')) {
+      // S3 download - get signed URL and redirect
+      const data = await response.json();
+      window.open(data.downloadUrl, '_blank');
+    } else {
+      // Local file download - create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    }
+  }
+
   // Analyses
   async getAnalyses(workspaceId?: string) {
     const query = workspaceId ? `?workspaceId=${workspaceId}` : '';

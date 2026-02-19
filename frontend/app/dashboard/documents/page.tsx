@@ -89,6 +89,14 @@ export default function DocumentsPage() {
     }
   };
 
+  const handleDownload = async (doc: any) => {
+    try {
+      await api.downloadDocument(doc.id, doc.name);
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
+  };
+
   const filteredDocuments = documents.filter((doc) => {
     // Search filter
     if (searchQuery && !doc.name.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -196,6 +204,7 @@ export default function DocumentsPage() {
                 key={doc.id}
                 document={doc}
                 onView={() => handleStartAnalysis(doc.id)}
+                onDownload={() => handleDownload(doc)}
                 onDelete={() => setDeleteDoc(doc)}
               />
             ))}
