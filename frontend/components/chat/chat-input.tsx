@@ -65,14 +65,18 @@ export function ChatInput({
             {attachedFiles.map((file) => (
               <div
                 key={file.id}
-                className="flex items-center gap-2 rounded-lg bg-background-secondary px-3 py-1.5 text-sm border border-border"
+                className="group flex items-center gap-2 rounded-lg bg-background-secondary px-3 py-1.5 text-sm border border-border hover:border-primary/50 transition-colors"
               >
                 <Paperclip className="h-3.5 w-3.5 text-foreground-tertiary" />
                 <span className="truncate max-w-[200px]">{file.name}</span>
                 {onRemoveFile && (
                   <button
-                    onClick={() => onRemoveFile(file.id)}
-                    className="text-foreground-tertiary hover:text-foreground ml-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveFile(file.id);
+                    }}
+                    className="p-0.5 rounded text-foreground-tertiary hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                    title="Remove from analysis"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
