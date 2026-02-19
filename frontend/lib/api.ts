@@ -171,6 +171,12 @@ class ApiClient {
     });
   }
 
+  async removeDocumentFromAnalysis(analysisId: string, documentId: string) {
+    return this.request<{ message: string }>(`/analyses/${analysisId}/documents/${documentId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async updateAnalysis(id: string, data: { title?: string; description?: string }) {
     return this.request<{ analysis: any }>(`/analyses/${id}`, {
       method: 'PATCH',

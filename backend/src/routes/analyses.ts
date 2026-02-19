@@ -357,6 +357,50 @@ router.post('/:id/documents', authenticate, async (req: AuthRequest, res) => {
   }
 });
 
+// Remove document from analysis
+router.delete('/:id/documents/:documentId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { id: analysisId, documentId } = req.params;
+
+    // Verify access
+    const analysis = await prisma.analysis.findFirst({
+      where: {
+        id: analysisId,
+        OR: [
+          { createdById: req.user!.id },
+          {
+            workspace: {
+              members: {
+                some: { userId: req.user!.id, role: { in: ['admin', 'editor'] } },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    if (!analysis) {
+      return res.status(404).json({ error: 'Analysis not found' });
+    }
+
+    await prisma.analysisDocument.deleteMany({
+      where: {
+        analysisId,
+        documentId,
+      },
+    });
+
+    // Emit socket event
+    const io = req.app.get('io');
+    io.to(`analysis:${analysisId}`).emit('document-removed', { documentId });
+
+    res.json({ message: 'Document removed from analysis' });
+  } catch (error) {
+    console.error('Remove document error:', error);
+    res.status(500).json({ error: 'Failed to remove document' });
+  }
+});
+
 // Update analysis
 router.patch('/:id', authenticate, async (req: AuthRequest, res) => {
   try {

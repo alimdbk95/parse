@@ -157,6 +157,15 @@ export default function ChatPage() {
     setShowUpload(false);
   };
 
+  const handleRemoveDocument = async (documentId: string) => {
+    try {
+      await api.removeDocumentFromAnalysis(analysisId, documentId);
+      setDocuments((prev) => prev.filter((d) => d.id !== documentId));
+    } catch (error) {
+      console.error('Failed to remove document:', error);
+    }
+  };
+
   const handleEditTitle = async () => {
     if (!editedTitle.trim() || editedTitle === analysis?.title) {
       setIsEditingTitle(false);
@@ -434,6 +443,12 @@ export default function ChatPage() {
       <ChatInput
         onSend={handleSendMessage}
         onAttach={() => setShowDocuments(true)}
+        attachedFiles={documents.map((doc) => ({
+          id: doc.id,
+          name: doc.name,
+          type: doc.type,
+        }))}
+        onRemoveFile={canEdit ? handleRemoveDocument : undefined}
         disabled={sending || !canEdit}
         placeholder={canEdit ? 'Ask about your data...' : 'View only - you cannot send messages'}
       />
