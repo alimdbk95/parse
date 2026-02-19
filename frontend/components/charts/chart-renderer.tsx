@@ -215,6 +215,7 @@ export function ChartRenderer({
 
   return (
     <div
+      data-chart-container
       style={{ height, backgroundColor: bgColor }}
       className="rounded-lg p-2"
     >

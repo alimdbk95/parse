@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Paperclip, Plus, Pencil, Check, X, Download, Eye, FolderPlus, Folder } from 'lucide-react';
+import { Paperclip, Plus, Pencil, Check, X, Download, Eye, FolderPlus, Folder, FileText, Image, ChevronDown } from 'lucide-react';
 import { MessageList } from '@/components/chat/message-list';
 import { ChatInput } from '@/components/chat/chat-input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/modal';
 import { Card, CardContent } from '@/components/ui/card';
 import { DocumentListItem } from '@/components/documents/document-card';
 import { UploadZone } from '@/components/documents/upload-zone';
+import { Menu, MenuItem } from '@/components/ui/dropdown';
 import { api } from '@/lib/api';
 import { useStore } from '@/lib/store';
 
@@ -236,6 +237,40 @@ export default function ChatPage() {
     }
   };
 
+  const handleExportChartsAsImage = async (format: 'png' | 'jpeg') => {
+    setExporting(true);
+    try {
+      // Find all chart containers in the page
+      const chartElements = document.querySelectorAll('[data-chart-container]');
+
+      if (chartElements.length === 0) {
+        alert('No charts found to export');
+        setExporting(false);
+        return;
+      }
+
+      // Dynamically import html2canvas
+      const html2canvas = (await import('html2canvas')).default;
+
+      for (let i = 0; i < chartElements.length; i++) {
+        const chartEl = chartElements[i] as HTMLElement;
+        const canvas = await html2canvas(chartEl, {
+          backgroundColor: '#0a0a0f',
+          scale: 2,
+        });
+
+        const link = document.createElement('a');
+        link.download = `${analysis?.title || 'chart'}_${i + 1}.${format}`;
+        link.href = canvas.toDataURL(`image/${format}`, format === 'jpeg' ? 0.95 : undefined);
+        link.click();
+      }
+    } catch (error) {
+      console.error(`Failed to export charts as ${format.toUpperCase()}:`, error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleOpenSaveToRepo = async () => {
     try {
       const { repositories } = await api.getRepositories();
@@ -336,14 +371,37 @@ export default function ChatPage() {
           >
             <FolderPlus className="h-4 w-4" />
           </button>
-          <button
-            onClick={handleExportPdf}
-            disabled={exporting}
-            className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors disabled:opacity-50"
-            title="Export PDF"
+          <Menu
+            trigger={
+              <button
+                disabled={exporting}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors disabled:opacity-50"
+                title="Download"
+              >
+                <Download className="h-4 w-4" />
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            }
           >
-            <Download className="h-4 w-4" />
-          </button>
+            <MenuItem
+              icon={<FileText className="h-4 w-4" />}
+              onClick={handleExportPdf}
+            >
+              Download as PDF
+            </MenuItem>
+            <MenuItem
+              icon={<Image className="h-4 w-4" />}
+              onClick={() => handleExportChartsAsImage('png')}
+            >
+              Download Charts as PNG
+            </MenuItem>
+            <MenuItem
+              icon={<Image className="h-4 w-4" />}
+              onClick={() => handleExportChartsAsImage('jpeg')}
+            >
+              Download Charts as JPEG
+            </MenuItem>
+          </Menu>
           <button
             onClick={() => setShowDocuments(true)}
             className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors"

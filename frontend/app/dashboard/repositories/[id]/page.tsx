@@ -32,6 +32,7 @@ export default function RepositoryDetailPage() {
   const [showAddAnalysis, setShowAddAnalysis] = useState(false);
   const [showAddDocument, setShowAddDocument] = useState(false);
   const [showAddComparison, setShowAddComparison] = useState(false);
+  const [creatingAnalysis, setCreatingAnalysis] = useState(false);
 
   // Available items to add
   const [availableAnalyses, setAvailableAnalyses] = useState<any[]>([]);
@@ -113,6 +114,23 @@ export default function RepositoryDetailPage() {
       setShowAddAnalysis(false);
     } catch (error) {
       console.error('Failed to add analysis:', error);
+    }
+  };
+
+  const handleCreateNewAnalysis = async () => {
+    setCreatingAnalysis(true);
+    try {
+      // Create a new analysis
+      const { analysis } = await api.createAnalysis({
+        title: 'New Analysis',
+      });
+      // Add it to this repository
+      await api.addAnalysisToRepository(repositoryId, analysis.id);
+      // Navigate to the new analysis
+      router.push(`/dashboard/chat/${analysis.id}`);
+    } catch (error) {
+      console.error('Failed to create analysis:', error);
+      setCreatingAnalysis(false);
     }
   };
 
@@ -292,7 +310,7 @@ export default function RepositoryDetailPage() {
         </div>
 
         {/* Search and Add */}
-        <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-tertiary" />
             <Input
@@ -302,16 +320,37 @@ export default function RepositoryDetailPage() {
               className="pl-9"
             />
           </div>
-          <Button
-            onClick={() => {
-              if (activeTab === 'analyses') handleOpenAddAnalysis();
-              else if (activeTab === 'documents') handleOpenAddDocument();
-              else handleOpenAddComparison();
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add {activeTab === 'analyses' ? 'Analysis' : activeTab === 'documents' ? 'Document' : 'Comparison'}
-          </Button>
+          <div className="flex items-center gap-2">
+            {activeTab === 'analyses' && (
+              <Button
+                onClick={handleCreateNewAnalysis}
+                disabled={creatingAnalysis}
+              >
+                {creatingAnalysis ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Analysis
+                  </>
+                )}
+              </Button>
+            )}
+            <Button
+              variant={activeTab === 'analyses' ? 'secondary' : 'default'}
+              onClick={() => {
+                if (activeTab === 'analyses') handleOpenAddAnalysis();
+                else if (activeTab === 'documents') handleOpenAddDocument();
+                else handleOpenAddComparison();
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add {activeTab === 'analyses' ? 'Existing' : activeTab === 'documents' ? 'Document' : 'Comparison'}
+            </Button>
+          </div>
         </div>
 
         {/* Content */}
@@ -379,12 +418,27 @@ export default function RepositoryDetailPage() {
                 </div>
                 <h3 className="font-medium">No analyses yet</h3>
                 <p className="mt-1 text-sm text-foreground-tertiary">
-                  Add analyses to this repository to keep them organized
+                  Start a new analysis or add existing ones to this repository
                 </p>
-                <Button className="mt-4" onClick={handleOpenAddAnalysis}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Analysis
-                </Button>
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <Button onClick={handleCreateNewAnalysis} disabled={creatingAnalysis}>
+                    {creatingAnalysis ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        New Analysis
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="secondary" onClick={handleOpenAddAnalysis}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Existing
+                  </Button>
+                </div>
               </Card>
             )}
           </div>
