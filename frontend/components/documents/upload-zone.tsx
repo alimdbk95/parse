@@ -10,25 +10,11 @@ interface UploadZoneProps {
   onUpload: (files: File[]) => Promise<void>;
   maxFiles?: number;
   maxSize?: number; // in bytes
-  accept?: Record<string, string[]>;
   className?: string;
 }
 
-const defaultAccept = {
-  'application/pdf': ['.pdf'],
-  'application/x-pdf': ['.pdf'],
-  '.pdf': ['.pdf'],
-  'text/csv': ['.csv'],
-  'application/csv': ['.csv'],
-  '.csv': ['.csv'],
-  'application/vnd.ms-excel': ['.xls'],
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-  '.xls': ['.xls'],
-  '.xlsx': ['.xlsx'],
-  'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
-  'text/plain': ['.txt'],
-  'application/json': ['.json'],
-};
+// Supported file extensions for display purposes
+const supportedExtensions = ['.pdf', '.csv', '.xls', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.txt', '.json'];
 
 interface FilePreview {
   file: File;
@@ -41,13 +27,21 @@ export function UploadZone({
   onUpload,
   maxFiles = 10,
   maxSize = 500 * 1024 * 1024, // 500MB
-  accept = defaultAccept,
   className,
 }: UploadZoneProps) {
   const [files, setFiles] = useState<FilePreview[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
+    // Log rejected files for debugging
+    if (rejectedFiles.length > 0) {
+      console.log('Rejected files:', rejectedFiles.map(f => ({
+        name: f.file.name,
+        type: f.file.type,
+        errors: f.errors
+      })));
+    }
+
     const newFiles = acceptedFiles.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
@@ -58,9 +52,10 @@ export function UploadZone({
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
-    accept,
     maxSize,
     maxFiles: maxFiles - files.length,
+    // Remove accept filter - let server validate file types
+    // This fixes issues with browsers reporting different MIME types for PDFs
   });
 
   const removeFile = (index: number) => {
