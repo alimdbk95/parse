@@ -147,10 +147,17 @@ export default function ChatPage() {
     for (const file of files) {
       try {
         const { document } = await api.uploadDocument(file, currentWorkspace?.id);
-        setAvailableDocs((prev) => [document, ...prev]);
-        // Link to analysis and add to documents list
-        await api.addDocumentToAnalysis(analysisId, document.id);
-        setDocuments((prev) => [...prev, document]);
+        if (document && document.id) {
+          setAvailableDocs((prev) => [document, ...prev]);
+          // Link to analysis
+          try {
+            await api.addDocumentToAnalysis(analysisId, document.id);
+          } catch (linkError) {
+            console.error('Failed to link document to analysis:', linkError);
+          }
+          // Add to documents list regardless of linking success
+          setDocuments((prev) => [...prev, document]);
+        }
       } catch (error) {
         console.error('Upload failed:', error);
       }
