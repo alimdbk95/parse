@@ -43,6 +43,13 @@ router.post('/upload', authenticate, upload.single('file'), async (req: AuthRequ
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    console.log('Processing upload:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      isS3Enabled
+    });
+
     const { workspaceId } = req.body;
     let filePath: string;
     let content: string | null = null;
@@ -50,26 +57,40 @@ router.post('/upload', authenticate, upload.single('file'), async (req: AuthRequ
 
     if (isS3Enabled) {
       // Upload to S3
+      console.log('Uploading to S3...');
       const s3Result = await uploadToS3(req.file, 'documents');
       filePath = s3Result.key; // Store S3 key as path
+      console.log('S3 upload complete:', filePath);
 
-      // Parse content from buffer for S3 uploads
-      content = await documentService.parseFromBuffer(
-        req.file.buffer,
-        req.file.mimetype,
-        req.file.originalname
-      );
+      // Parse content from buffer for S3 uploads (wrapped in try-catch)
+      try {
+        content = await documentService.parseFromBuffer(
+          req.file.buffer,
+          req.file.mimetype,
+          req.file.originalname
+        );
+      } catch (parseError) {
+        console.error('Content parsing failed, continuing with upload:', parseError);
+        content = 'File uploaded successfully. Content extraction not available.';
+      }
     } else {
       // Local storage
       filePath = req.file.path;
+      console.log('Local storage path:', filePath);
 
-      // Parse document content from file
-      const parsed = await documentService.parseDocument(
-        req.file.path,
-        req.file.mimetype
-      );
-      content = parsed.content;
-      metadata = parsed.metadata;
+      // Parse document content from file (wrapped in try-catch)
+      try {
+        const parsed = await documentService.parseDocument(
+          req.file.path,
+          req.file.mimetype
+        );
+        content = parsed.content;
+        metadata = parsed.metadata;
+      } catch (parseError) {
+        console.error('Content parsing failed, continuing with upload:', parseError);
+        content = 'File uploaded successfully. Content extraction not available.';
+        metadata = { type: path.extname(req.file.originalname).replace('.', '') };
+      }
     }
 
     const document = await prisma.document.create({
