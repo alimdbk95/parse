@@ -94,9 +94,17 @@ Your capabilities:
 6. Answer questions about the content
 
 IMPORTANT RESPONSE GUIDELINES:
-- When users ask for a "summary" or to "summarize", focus ONLY on the actual content and key findings. Do NOT include file metadata (file name, type, size, word count, etc.) unless specifically asked.
+- When users ask for a "summary" or to "summarize", provide a DEEP, SUBSTANTIVE analysis of the actual content. Do NOT give generic or surface-level responses.
+- Summaries should extract and explain:
+  * The main thesis, argument, or purpose
+  * Key findings, data points, or conclusions
+  * Important themes, patterns, or trends
+  * Notable quotes or specific details that matter
+  * Implications or significance of the content
+- Do NOT include file metadata (file name, type, size, word count, etc.) unless specifically asked.
 - Summaries should be about WHAT the document says, not ABOUT the document itself.
-- Keep responses focused and concise - get straight to the insights.
+- Be specific and detailed - reference actual content from the document, not generic descriptions.
+- If the document contains data, highlight the most important numbers, trends, and what they mean.
 - Only mention technical details about the file if the user explicitly asks (e.g., "what type of file is this?", "how many pages?", etc.)
 
 When users paste data directly in their message (CSV, JSON, tabular data, arrays, etc.), analyze it just like you would analyze an uploaded document. Parse the data, identify patterns, and offer to create visualizations.
@@ -374,22 +382,56 @@ What would you like to explore?`,
     const wantsSummary = summaryKeywords.some(keyword => lowerMessage.includes(keyword));
 
     if (wantsSummary && hasDocuments) {
-      // Try to extract some content from the documents for a basic summary
+      // Try to extract meaningful content from the documents
       const doc = context.documents[0];
       const content = doc.content || '';
 
-      // Get first few sentences as a basic summary
-      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20).slice(0, 5);
+      if (content.length > 100) {
+        // Extract meaningful sentences (not too short, not headers)
+        const sentences = content
+          .split(/[.!?]+/)
+          .map(s => s.trim())
+          .filter(s => s.length > 30 && s.length < 500 && !s.match(/^[A-Z\s]+$/));
 
-      if (sentences.length > 0) {
-        return {
-          text: `**Summary:**
+        // Try to identify key sections
+        const keyPhrases: string[] = [];
 
-${sentences.map(s => s.trim()).join('. ')}.
+        // Look for sentences with important indicators
+        const importantIndicators = ['conclude', 'result', 'finding', 'show', 'demonstrate', 'significant', 'important', 'key', 'main', 'primary', 'total', 'percent', '%', 'increase', 'decrease', 'growth'];
+        const importantSentences = sentences.filter(s =>
+          importantIndicators.some(indicator => s.toLowerCase().includes(indicator))
+        ).slice(0, 3);
 
-**Note:** Running in demo mode. Add \`ANTHROPIC_API_KEY\` for more detailed AI-powered analysis and insights.`,
-        };
+        // Get opening context (usually introduces the topic)
+        const openingSentences = sentences.slice(0, 2);
+
+        // Combine for a meaningful summary
+        const summaryParts = [...new Set([...openingSentences, ...importantSentences])].slice(0, 5);
+
+        if (summaryParts.length > 0) {
+          return {
+            text: `**Summary:**
+
+${summaryParts.join('. ')}.
+
+**Key Points Identified:**
+${importantSentences.length > 0 ? importantSentences.map(s => `- ${s.slice(0, 150)}${s.length > 150 ? '...' : ''}`).join('\n') : '- Content analysis requires AI capabilities for deeper insights.'}
+
+**Note:** Running in demo mode. Add \`ANTHROPIC_API_KEY\` for comprehensive AI-powered analysis with deeper insights, pattern recognition, and data extraction.`,
+          };
+        }
       }
+
+      // Fallback for documents with minimal extractable content
+      return {
+        text: `This document has been uploaded but contains limited extractable text content.
+
+**Note:** Running in demo mode. Add \`ANTHROPIC_API_KEY\` to enable full AI analysis capabilities including:
+- Deep content analysis and summarization
+- Key insight extraction
+- Pattern and trend identification
+- Data visualization suggestions`,
+      };
     }
 
     return {
