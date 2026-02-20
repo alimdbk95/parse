@@ -93,6 +93,12 @@ Your capabilities:
 5. Compare data across documents
 6. Answer questions about the content
 
+IMPORTANT RESPONSE GUIDELINES:
+- When users ask for a "summary" or to "summarize", focus ONLY on the actual content and key findings. Do NOT include file metadata (file name, type, size, word count, etc.) unless specifically asked.
+- Summaries should be about WHAT the document says, not ABOUT the document itself.
+- Keep responses focused and concise - get straight to the insights.
+- Only mention technical details about the file if the user explicitly asks (e.g., "what type of file is this?", "how many pages?", etc.)
+
 When users paste data directly in their message (CSV, JSON, tabular data, arrays, etc.), analyze it just like you would analyze an uploaded document. Parse the data, identify patterns, and offer to create visualizations.
 
 When the user asks for a chart or visualization, respond with your analysis AND include a JSON block at the end of your response in this exact format:
@@ -115,7 +121,7 @@ For multi-series charts (grouped bars), use this format:
 }
 \`\`\`
 
-Important guidelines:
+Additional guidelines:
 - Be concise but thorough in your analysis
 - Use markdown formatting (bold, lists, tables) for clarity
 - When you don't have real data, clearly state you're using sample data
@@ -363,8 +369,31 @@ What would you like to explore?`,
       };
     }
 
+    // Check if user is asking for a summary
+    const summaryKeywords = ['summarize', 'summary', 'summarise', 'overview', 'main points', 'key points', 'what is this about', 'tell me about'];
+    const wantsSummary = summaryKeywords.some(keyword => lowerMessage.includes(keyword));
+
+    if (wantsSummary && hasDocuments) {
+      // Try to extract some content from the documents for a basic summary
+      const doc = context.documents[0];
+      const content = doc.content || '';
+
+      // Get first few sentences as a basic summary
+      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20).slice(0, 5);
+
+      if (sentences.length > 0) {
+        return {
+          text: `**Summary:**
+
+${sentences.map(s => s.trim()).join('. ')}.
+
+**Note:** Running in demo mode. Add \`ANTHROPIC_API_KEY\` for more detailed AI-powered analysis and insights.`,
+        };
+      }
+    }
+
     return {
-      text: `I see you have ${context.documents.length} document(s) uploaded: ${context.documents.map(d => d.name).join(', ')}.
+      text: `I have ${context.documents.length} document(s) ready for analysis.
 
 **Note:** Running in demo mode. Add \`ANTHROPIC_API_KEY\` to enable full AI analysis.
 
@@ -374,7 +403,7 @@ I can help you:
 - **Extract** - "What are the key metrics?"
 - **Compare** - "Compare the values across categories"
 
-What would you like to know about your documents?`,
+What would you like to know?`,
     };
   }
 
