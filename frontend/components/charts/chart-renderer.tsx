@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import {
   BarChart,
   Bar,
@@ -18,7 +19,10 @@ import {
   Legend,
   ResponsiveContainer,
   Cell,
+  Brush,
+  ReferenceArea,
 } from 'recharts';
+import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 const defaultColors = [
   '#f97066', // coral
@@ -39,6 +43,15 @@ interface ChartRendererProps {
   showLegend?: boolean;
   showGrid?: boolean;
   background?: 'light' | 'dark' | 'transparent';
+  enableZoom?: boolean;
+}
+
+interface ZoomState {
+  left: string | number;
+  right: string | number;
+  refAreaLeft: string;
+  refAreaRight: string;
+  isZooming: boolean;
 }
 
 export function ChartRenderer({
@@ -49,7 +62,18 @@ export function ChartRenderer({
   showLegend = true,
   showGrid = true,
   background = 'dark',
+  enableZoom = true,
 }: ChartRendererProps) {
+  // Zoom state
+  const [zoomState, setZoomState] = useState<ZoomState>({
+    left: 'dataMin',
+    right: 'dataMax',
+    refAreaLeft: '',
+    refAreaRight: '',
+    isZooming: false,
+  });
+  const [zoomedData, setZoomedData] = useState<any[] | null>(null);
+
   if (!data || data.length === 0) {
     return (
       <div
@@ -70,8 +94,11 @@ export function ChartRenderer({
   const textColor = background === 'light' ? '#18181b' : '#a1a1aa';
   const gridColor = background === 'light' ? '#e4e4e7' : '#27272a';
 
+  // Use zoomed data if available, otherwise use original data
+  const chartData = zoomedData || data;
+
   const commonProps = {
-    data,
+    data: chartData,
     margin: { top: 10, right: 30, left: 0, bottom: 0 },
   };
 
@@ -82,11 +109,82 @@ export function ChartRenderer({
     color: background === 'light' ? '#18181b' : '#ffffff',
   };
 
+  // Zoom handlers
+  const handleMouseDown = (e: any) => {
+    if (!enableZoom || type === 'pie') return;
+    if (e && e.activeLabel) {
+      setZoomState(prev => ({ ...prev, refAreaLeft: e.activeLabel, isZooming: true }));
+    }
+  };
+
+  const handleMouseMove = (e: any) => {
+    if (!enableZoom || !zoomState.isZooming) return;
+    if (e && e.activeLabel) {
+      setZoomState(prev => ({ ...prev, refAreaRight: e.activeLabel }));
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (!enableZoom || !zoomState.isZooming) return;
+
+    const { refAreaLeft, refAreaRight } = zoomState;
+
+    if (refAreaLeft === refAreaRight || refAreaRight === '') {
+      setZoomState(prev => ({
+        ...prev,
+        refAreaLeft: '',
+        refAreaRight: '',
+        isZooming: false,
+      }));
+      return;
+    }
+
+    // Find indices for zoom range
+    let leftIndex = data.findIndex(item => item[xKey] === refAreaLeft);
+    let rightIndex = data.findIndex(item => item[xKey] === refAreaRight);
+
+    if (leftIndex > rightIndex) {
+      [leftIndex, rightIndex] = [rightIndex, leftIndex];
+    }
+
+    // Slice data for zoomed view
+    const newZoomedData = data.slice(leftIndex, rightIndex + 1);
+    setZoomedData(newZoomedData);
+
+    setZoomState({
+      left: refAreaLeft,
+      right: refAreaRight,
+      refAreaLeft: '',
+      refAreaRight: '',
+      isZooming: false,
+    });
+  };
+
+  const handleZoomOut = () => {
+    setZoomedData(null);
+    setZoomState({
+      left: 'dataMin',
+      right: 'dataMax',
+      refAreaLeft: '',
+      refAreaRight: '',
+      isZooming: false,
+    });
+  };
+
+  const isZoomed = zoomedData !== null;
+
   const renderChart = () => {
+    // Common zoom props for cartesian charts
+    const zoomProps = enableZoom && type !== 'pie' ? {
+      onMouseDown: handleMouseDown,
+      onMouseMove: handleMouseMove,
+      onMouseUp: handleMouseUp,
+    } : {};
+
     switch (type) {
       case 'bar':
         return (
-          <BarChart {...commonProps}>
+          <BarChart {...commonProps} {...zoomProps}>
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />}
             <XAxis dataKey={xKey} stroke={textColor} fontSize={12} />
             <YAxis stroke={textColor} fontSize={12} />
@@ -100,12 +198,21 @@ export function ChartRenderer({
                 radius={[4, 4, 0, 0]}
               />
             ))}
+            {enableZoom && zoomState.refAreaLeft && zoomState.refAreaRight && (
+              <ReferenceArea
+                x1={zoomState.refAreaLeft}
+                x2={zoomState.refAreaRight}
+                strokeOpacity={0.3}
+                fill="#3b82f6"
+                fillOpacity={0.3}
+              />
+            )}
           </BarChart>
         );
 
       case 'line':
         return (
-          <LineChart {...commonProps}>
+          <LineChart {...commonProps} {...zoomProps}>
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />}
             <XAxis dataKey={xKey} stroke={textColor} fontSize={12} />
             <YAxis stroke={textColor} fontSize={12} />
@@ -122,12 +229,21 @@ export function ChartRenderer({
                 activeDot={{ r: 6, strokeWidth: 0 }}
               />
             ))}
+            {enableZoom && zoomState.refAreaLeft && zoomState.refAreaRight && (
+              <ReferenceArea
+                x1={zoomState.refAreaLeft}
+                x2={zoomState.refAreaRight}
+                strokeOpacity={0.3}
+                fill="#3b82f6"
+                fillOpacity={0.3}
+              />
+            )}
           </LineChart>
         );
 
       case 'area':
         return (
-          <AreaChart {...commonProps}>
+          <AreaChart {...commonProps} {...zoomProps}>
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />}
             <XAxis dataKey={xKey} stroke={textColor} fontSize={12} />
             <YAxis stroke={textColor} fontSize={12} />
@@ -144,6 +260,15 @@ export function ChartRenderer({
                 strokeWidth={2}
               />
             ))}
+            {enableZoom && zoomState.refAreaLeft && zoomState.refAreaRight && (
+              <ReferenceArea
+                x1={zoomState.refAreaLeft}
+                x2={zoomState.refAreaRight}
+                strokeOpacity={0.3}
+                fill="#3b82f6"
+                fillOpacity={0.3}
+              />
+            )}
           </AreaChart>
         );
 
@@ -184,17 +309,26 @@ export function ChartRenderer({
 
       case 'scatter':
         return (
-          <ScatterChart {...commonProps}>
+          <ScatterChart {...commonProps} {...zoomProps}>
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />}
             <XAxis dataKey={yKeys[0]} name={yKeys[0]} stroke={textColor} fontSize={12} />
             <YAxis dataKey={yKeys[1]} name={yKeys[1]} stroke={textColor} fontSize={12} />
             <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray: '3 3' }} />
             {showLegend && <Legend />}
-            <Scatter name="Data" data={data} fill={colors[0]}>
-              {data.map((_, index) => (
+            <Scatter name="Data" data={chartData} fill={colors[0]}>
+              {chartData.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Scatter>
+            {enableZoom && zoomState.refAreaLeft && zoomState.refAreaRight && (
+              <ReferenceArea
+                x1={zoomState.refAreaLeft}
+                x2={zoomState.refAreaRight}
+                strokeOpacity={0.3}
+                fill="#3b82f6"
+                fillOpacity={0.3}
+              />
+            )}
           </ScatterChart>
         );
 
@@ -216,12 +350,39 @@ export function ChartRenderer({
   return (
     <div
       data-chart-container
-      style={{ height, backgroundColor: bgColor }}
-      className="rounded-lg p-2"
+      style={{ backgroundColor: bgColor }}
+      className="rounded-lg p-2 relative"
     >
-      <ResponsiveContainer width="100%" height="100%">
-        {chart}
-      </ResponsiveContainer>
+      {/* Zoom Controls */}
+      {enableZoom && type !== 'pie' && (
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
+          {isZoomed && (
+            <button
+              onClick={handleZoomOut}
+              className="p-1.5 rounded-md bg-background-tertiary/80 hover:bg-background-tertiary text-foreground-secondary hover:text-foreground transition-colors"
+              title="Reset zoom"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </button>
+          )}
+          <div className="px-2 py-1 rounded-md bg-background-tertiary/80 text-xs text-foreground-tertiary">
+            {isZoomed ? 'Zoomed' : 'Drag to zoom'}
+          </div>
+        </div>
+      )}
+
+      <div style={{ height }}>
+        <ResponsiveContainer width="100%" height="100%">
+          {chart}
+        </ResponsiveContainer>
+      </div>
+
+      {/* Zoom instructions */}
+      {enableZoom && type !== 'pie' && !isZoomed && (
+        <p className="text-center text-xs text-foreground-tertiary mt-1 opacity-60">
+          Click and drag on the chart to zoom in
+        </p>
+      )}
     </div>
   );
 }

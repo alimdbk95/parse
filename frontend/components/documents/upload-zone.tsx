@@ -31,10 +31,19 @@ export function UploadZone({
 }: UploadZoneProps) {
   const [files, setFiles] = useState<FilePreview[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
-    // Log rejected files for debugging
+    // Clear previous errors
+    setError(null);
+
+    // Handle rejected files with user-visible error
     if (rejectedFiles.length > 0) {
+      const errorMessages = rejectedFiles.map(f => {
+        const errors = f.errors.map((e: any) => e.message).join(', ');
+        return `${f.file.name}: ${errors}`;
+      });
+      setError(errorMessages.join('\n'));
       console.log('Rejected files:', rejectedFiles.map(f => ({
         name: f.file.name,
         type: f.file.type,
@@ -42,20 +51,47 @@ export function UploadZone({
       })));
     }
 
-    const newFiles = acceptedFiles.map((file) => ({
-      file,
-      preview: URL.createObjectURL(file),
-      uploading: false,
-    }));
-    setFiles((prev) => [...prev, ...newFiles].slice(0, maxFiles));
+    // Add accepted files
+    if (acceptedFiles.length > 0) {
+      const newFiles = acceptedFiles.map((file) => ({
+        file,
+        preview: URL.createObjectURL(file),
+        uploading: false,
+      }));
+      setFiles((prev) => [...prev, ...newFiles].slice(0, maxFiles));
+    }
   }, [maxFiles]);
+
+  // Custom validator that checks by file extension (more reliable than MIME type)
+  const fileValidator = (file: File) => {
+    const ext = file.name.toLowerCase().split('.').pop();
+    const allowedExtensions = ['pdf', 'csv', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'json'];
+
+    if (!ext || !allowedExtensions.includes(ext)) {
+      return {
+        code: 'file-invalid-type',
+        message: `File type .${ext || 'unknown'} is not supported`
+      };
+    }
+    return null;
+  };
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
     maxSize,
-    maxFiles: maxFiles - files.length,
-    // Remove accept filter - let server validate file types
-    // This fixes issues with browsers reporting different MIME types for PDFs
+    maxFiles: maxFiles - files.length > 0 ? maxFiles - files.length : 1,
+    validator: fileValidator,
+    // Accept all common document types - validation is done by extension
+    accept: {
+      'application/pdf': ['.pdf'],
+      'text/csv': ['.csv'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
+      'text/plain': ['.txt'],
+      'application/json': ['.json'],
+    },
+    multiple: true,
   });
 
   const removeFile = (index: number) => {
@@ -70,11 +106,13 @@ export function UploadZone({
     if (files.length === 0) return;
 
     setUploading(true);
+    setError(null);
     try {
       await onUpload(files.map((f) => f.file));
       setFiles([]);
-    } catch (error) {
-      console.error('Upload failed:', error);
+    } catch (err: any) {
+      console.error('Upload failed:', err);
+      setError(err.message || 'Failed to upload files. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -127,6 +165,14 @@ export function UploadZone({
           </div>
         </div>
       </div>
+
+      {/* Error display */}
+      {error && (
+        <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400">
+          <p className="font-medium mb-1">Upload Error:</p>
+          <p className="whitespace-pre-wrap">{error}</p>
+        </div>
+      )}
 
       {files.length > 0 && (
         <div className="space-y-3">

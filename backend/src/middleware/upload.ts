@@ -41,6 +41,17 @@ const fileFilter = (
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {
+  // Check by file extension first (more reliable than MIME type)
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedExtensions = ['.pdf', '.csv', '.xls', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.txt', '.json'];
+
+  if (allowedExtensions.includes(ext)) {
+    console.log(`File accepted by extension: ${file.originalname} (ext: ${ext}, mime: ${file.mimetype})`);
+    cb(null, true);
+    return;
+  }
+
+  // Fallback to MIME type check
   const allowedTypes = [
     'application/pdf',
     'application/x-pdf',
@@ -63,9 +74,11 @@ const fileFilter = (
   ];
 
   if (allowedTypes.includes(file.mimetype)) {
+    console.log(`File accepted by MIME type: ${file.originalname} (mime: ${file.mimetype})`);
     cb(null, true);
   } else {
-    cb(new Error(`File type ${file.mimetype} is not supported`));
+    console.log(`File rejected: ${file.originalname} (ext: ${ext}, mime: ${file.mimetype})`);
+    cb(new Error(`File type ${file.mimetype} (${ext}) is not supported`));
   }
 };
 
