@@ -58,9 +58,17 @@ router.post('/upload', authenticate, upload.single('file'), async (req: AuthRequ
     if (isS3Enabled) {
       // Upload to S3
       console.log('Uploading to S3...');
-      const s3Result = await uploadToS3(req.file, 'documents');
-      filePath = s3Result.key; // Store S3 key as path
-      console.log('S3 upload complete:', filePath);
+      try {
+        const s3Result = await uploadToS3(req.file, 'documents');
+        filePath = s3Result.key; // Store S3 key as path
+        console.log('S3 upload complete:', filePath);
+      } catch (s3Error: any) {
+        console.error('S3 upload failed:', s3Error?.message, s3Error);
+        return res.status(500).json({
+          error: 'Failed to upload file to storage',
+          details: s3Error?.message || 'S3 upload error'
+        });
+      }
 
       // Parse content from buffer for S3 uploads (wrapped in try-catch)
       try {
