@@ -34,6 +34,13 @@ export function UploadZone({
   const [error, setError] = useState<string | null>(null);
 
   const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
+    console.log('onDrop called:', {
+      acceptedCount: acceptedFiles.length,
+      rejectedCount: rejectedFiles.length,
+      accepted: acceptedFiles.map(f => ({ name: f.name, type: f.type, size: f.size })),
+      rejected: rejectedFiles.map(f => ({ name: f.file?.name, type: f.file?.type, errors: f.errors }))
+    });
+
     // Clear previous errors
     setError(null);
 
@@ -44,11 +51,6 @@ export function UploadZone({
         return `${f.file.name}: ${errors}`;
       });
       setError(errorMessages.join('\n'));
-      console.log('Rejected files:', rejectedFiles.map(f => ({
-        name: f.file.name,
-        type: f.file.type,
-        errors: f.errors
-      })));
     }
 
     // Add accepted files
@@ -62,36 +64,13 @@ export function UploadZone({
     }
   }, [maxFiles]);
 
-  // Custom validator that checks by file extension (more reliable than MIME type)
-  const fileValidator = (file: File) => {
-    const ext = file.name.toLowerCase().split('.').pop();
-    const allowedExtensions = ['pdf', 'csv', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'json'];
-
-    if (!ext || !allowedExtensions.includes(ext)) {
-      return {
-        code: 'file-invalid-type',
-        message: `File type .${ext || 'unknown'} is not supported`
-      };
-    }
-    return null;
-  };
-
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
     maxSize,
     maxFiles: maxFiles - files.length > 0 ? maxFiles - files.length : 1,
-    validator: fileValidator,
-    // Accept all common document types - validation is done by extension
-    accept: {
-      'application/pdf': ['.pdf'],
-      'text/csv': ['.csv'],
-      'application/vnd.ms-excel': ['.xls'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'],
-      'text/plain': ['.txt'],
-      'application/json': ['.json'],
-    },
     multiple: true,
+    // No accept filter - let the server validate file types
+    // This is necessary because browsers report inconsistent MIME types for PDFs
   });
 
   const removeFile = (index: number) => {
