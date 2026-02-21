@@ -1,28 +1,9 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  AreaChart,
-  Area,
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
-  Brush,
-  ReferenceArea,
-} from 'recharts';
-import { ZoomIn, ZoomOut, RotateCcw, Pencil, X, Check, Plus, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import Highcharts from 'highcharts';
+import HighchartsReact from 'highcharts-react-official';
+import { Pencil, X, Check, Plus, Trash2, RotateCcw } from 'lucide-react';
 
 const defaultColors = [
   '#f97066', // coral
@@ -48,14 +29,6 @@ interface ChartRendererProps {
   onDataChange?: (newData: any[]) => void;
 }
 
-interface ZoomState {
-  left: string | number;
-  right: string | number;
-  refAreaLeft: string;
-  refAreaRight: string;
-  isZooming: boolean;
-}
-
 export function ChartRenderer({
   type,
   data,
@@ -68,20 +41,13 @@ export function ChartRenderer({
   enableEdit = true,
   onDataChange,
 }: ChartRendererProps) {
-  // Zoom state
-  const [zoomState, setZoomState] = useState<ZoomState>({
-    left: 'dataMin',
-    right: 'dataMax',
-    refAreaLeft: '',
-    refAreaRight: '',
-    isZooming: false,
-  });
-  const [zoomedData, setZoomedData] = useState<any[] | null>(null);
+  const chartRef = useRef<HighchartsReact.RefObject>(null);
 
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
   const [editableData, setEditableData] = useState<any[]>([]);
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false);
 
   // Initialize editable data when entering edit mode
   useEffect(() => {
@@ -128,89 +94,13 @@ export function ChartRenderer({
   const xKey = keys.find((k) => typeof firstItem[k] === 'string') || keys[0];
   const yKeys = keys.filter((k) => typeof firstItem[k] === 'number');
 
+  // Theme colors based on background
   const bgColor = background === 'light' ? '#ffffff' : background === 'dark' ? '#18181b' : 'transparent';
   const textColor = background === 'light' ? '#18181b' : '#a1a1aa';
   const gridColor = background === 'light' ? '#e4e4e7' : '#27272a';
 
-  // Use editable data in edit mode, zoomed data if zoomed, otherwise original data
-  // Make sure we fall back to original data if editableData is empty
-  const chartData = isEditMode && editableData.length > 0 ? editableData : (zoomedData || data);
-
-  const commonProps = {
-    data: chartData,
-    margin: { top: 10, right: 30, left: 0, bottom: 0 },
-  };
-
-  const tooltipStyle = {
-    backgroundColor: background === 'light' ? '#ffffff' : '#27272a',
-    border: `1px solid ${gridColor}`,
-    borderRadius: '8px',
-    color: background === 'light' ? '#18181b' : '#ffffff',
-  };
-
-  // Zoom handlers
-  const handleMouseDown = (e: any) => {
-    if (!enableZoom || type === 'pie') return;
-    if (e && e.activeLabel) {
-      setZoomState(prev => ({ ...prev, refAreaLeft: e.activeLabel, isZooming: true }));
-    }
-  };
-
-  const handleMouseMove = (e: any) => {
-    if (!enableZoom || !zoomState.isZooming) return;
-    if (e && e.activeLabel) {
-      setZoomState(prev => ({ ...prev, refAreaRight: e.activeLabel }));
-    }
-  };
-
-  const handleMouseUp = () => {
-    if (!enableZoom || !zoomState.isZooming) return;
-
-    const { refAreaLeft, refAreaRight } = zoomState;
-
-    if (refAreaLeft === refAreaRight || refAreaRight === '') {
-      setZoomState(prev => ({
-        ...prev,
-        refAreaLeft: '',
-        refAreaRight: '',
-        isZooming: false,
-      }));
-      return;
-    }
-
-    // Find indices for zoom range
-    let leftIndex = data.findIndex(item => item[xKey] === refAreaLeft);
-    let rightIndex = data.findIndex(item => item[xKey] === refAreaRight);
-
-    if (leftIndex > rightIndex) {
-      [leftIndex, rightIndex] = [rightIndex, leftIndex];
-    }
-
-    // Slice data for zoomed view
-    const newZoomedData = data.slice(leftIndex, rightIndex + 1);
-    setZoomedData(newZoomedData);
-
-    setZoomState({
-      left: refAreaLeft,
-      right: refAreaRight,
-      refAreaLeft: '',
-      refAreaRight: '',
-      isZooming: false,
-    });
-  };
-
-  const handleZoomOut = () => {
-    setZoomedData(null);
-    setZoomState({
-      left: 'dataMin',
-      right: 'dataMax',
-      refAreaLeft: '',
-      refAreaRight: '',
-      isZooming: false,
-    });
-  };
-
-  const isZoomed = zoomedData !== null;
+  // Use editable data in edit mode, otherwise original data
+  const chartData = isEditMode && editableData.length > 0 ? editableData : data;
 
   // Edit mode handlers
   const handleCellChange = (rowIndex: number, key: string, value: string) => {
@@ -228,10 +118,10 @@ export function ChartRenderer({
 
   const handleAddRow = () => {
     const newRow: any = {};
-    const firstItem = editableData[0] || data[0];
-    if (firstItem) {
-      Object.keys(firstItem).forEach(key => {
-        newRow[key] = typeof firstItem[key] === 'number' ? 0 : '';
+    const firstDataItem = editableData[0] || data[0];
+    if (firstDataItem) {
+      Object.keys(firstDataItem).forEach(key => {
+        newRow[key] = typeof firstDataItem[key] === 'number' ? 0 : '';
       });
     }
     setEditableData(prev => [...prev, newRow]);
@@ -246,15 +136,6 @@ export function ChartRenderer({
       onDataChange(editableData);
     }
     setIsEditMode(false);
-    // Reset zoom when data changes
-    setZoomedData(null);
-    setZoomState({
-      left: 'dataMin',
-      right: 'dataMax',
-      refAreaLeft: '',
-      refAreaRight: '',
-      isZooming: false,
-    });
   };
 
   const handleCancelEdit = () => {
@@ -263,12 +144,240 @@ export function ChartRenderer({
     setEditingCell(null);
   };
 
+  const handleResetZoom = () => {
+    if (chartRef.current?.chart) {
+      chartRef.current.chart.zoomOut();
+      setIsZoomed(false);
+    }
+  };
+
+  // Build Highcharts options based on chart type
+  const getChartOptions = (): Highcharts.Options => {
+    const categories = chartData.map(item => String(item[xKey]));
+
+    const baseOptions: Highcharts.Options = {
+      chart: {
+        backgroundColor: bgColor,
+        style: {
+          fontFamily: 'Inter, system-ui, sans-serif',
+        },
+        zooming: enableZoom && type !== 'pie' ? {
+          type: 'x',
+          resetButton: {
+            theme: {
+              style: {
+                display: 'none', // We'll use our own reset button
+              },
+            },
+          },
+        } : undefined,
+        events: {
+          selection: function(event) {
+            if (event.resetSelection) {
+              setIsZoomed(false);
+            } else {
+              setIsZoomed(true);
+            }
+            return true;
+          },
+        },
+      },
+      title: {
+        text: undefined,
+      },
+      credits: {
+        enabled: false,
+      },
+      colors: colors,
+      legend: {
+        enabled: showLegend,
+        itemStyle: {
+          color: textColor,
+          fontWeight: 'normal',
+        },
+        itemHoverStyle: {
+          color: background === 'light' ? '#000000' : '#ffffff',
+        },
+      },
+      tooltip: {
+        backgroundColor: background === 'light' ? '#ffffff' : '#27272a',
+        borderColor: gridColor,
+        borderRadius: 8,
+        style: {
+          color: background === 'light' ? '#18181b' : '#ffffff',
+        },
+        shadow: {
+          color: 'rgba(0, 0, 0, 0.2)',
+          offsetX: 0,
+          offsetY: 2,
+          width: 8,
+        },
+      },
+      xAxis: {
+        categories: type !== 'scatter' ? categories : undefined,
+        labels: {
+          style: {
+            color: textColor,
+            fontSize: '12px',
+          },
+        },
+        lineColor: gridColor,
+        tickColor: gridColor,
+        gridLineColor: showGrid ? gridColor : 'transparent',
+      },
+      yAxis: {
+        title: {
+          text: undefined,
+        },
+        labels: {
+          style: {
+            color: textColor,
+            fontSize: '12px',
+          },
+        },
+        gridLineColor: showGrid ? gridColor : 'transparent',
+      },
+      plotOptions: {
+        series: {
+          animation: {
+            duration: 500,
+          },
+        },
+        bar: {
+          borderRadius: 4,
+        },
+        column: {
+          borderRadius: 4,
+        },
+        pie: {
+          allowPointSelect: true,
+          cursor: 'pointer',
+          dataLabels: {
+            enabled: true,
+            format: '{point.name}: {point.percentage:.0f}%',
+            style: {
+              color: textColor,
+              textOutline: 'none',
+            },
+          },
+          innerSize: '60%',
+        },
+        area: {
+          fillOpacity: 0.3,
+        },
+      },
+    };
+
+    // Build series based on chart type
+    let series: Highcharts.SeriesOptionsType[] = [];
+
+    switch (type) {
+      case 'bar':
+        series = yKeys.map((key, index) => ({
+          type: 'column' as const,
+          name: key,
+          data: chartData.map(item => item[key]),
+          color: colors[index % colors.length],
+        }));
+        break;
+
+      case 'line':
+        series = yKeys.map((key, index) => ({
+          type: 'line' as const,
+          name: key,
+          data: chartData.map(item => item[key]),
+          color: colors[index % colors.length],
+          marker: {
+            enabled: true,
+            radius: 4,
+            fillColor: colors[index % colors.length],
+          },
+        }));
+        break;
+
+      case 'area':
+        series = yKeys.map((key, index) => ({
+          type: 'area' as const,
+          name: key,
+          data: chartData.map(item => item[key]),
+          color: colors[index % colors.length],
+          fillColor: {
+            linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+            stops: [
+              [0, Highcharts.color(colors[index % colors.length]).setOpacity(0.4).get('rgba') as string],
+              [1, Highcharts.color(colors[index % colors.length]).setOpacity(0.05).get('rgba') as string],
+            ],
+          },
+        }));
+        break;
+
+      case 'pie':
+        const valueKey = yKeys[0] || 'value';
+        series = [{
+          type: 'pie' as const,
+          name: valueKey,
+          data: chartData.map((item, index) => ({
+            name: String(item[xKey]),
+            y: item[valueKey],
+            color: colors[index % colors.length],
+          })),
+        }];
+        break;
+
+      case 'scatter':
+        if (yKeys.length >= 2) {
+          series = [{
+            type: 'scatter' as const,
+            name: 'Data',
+            data: chartData.map((item, index) => ({
+              x: item[yKeys[0]],
+              y: item[yKeys[1]],
+              color: colors[index % colors.length],
+            })),
+          }];
+          // Override xAxis for scatter
+          baseOptions.xAxis = {
+            title: {
+              text: yKeys[0],
+              style: { color: textColor },
+            },
+            labels: {
+              style: {
+                color: textColor,
+                fontSize: '12px',
+              },
+            },
+            gridLineColor: showGrid ? gridColor : 'transparent',
+          };
+          baseOptions.yAxis = {
+            title: {
+              text: yKeys[1],
+              style: { color: textColor },
+            },
+            labels: {
+              style: {
+                color: textColor,
+                fontSize: '12px',
+              },
+            },
+            gridLineColor: showGrid ? gridColor : 'transparent',
+          };
+        }
+        break;
+    }
+
+    return {
+      ...baseOptions,
+      series,
+    };
+  };
+
   // Render editable data table
   const renderDataTable = () => {
     if (!isEditMode || !editableData || editableData.length === 0 || !editableData[0]) return null;
 
-    const keys = Object.keys(editableData[0]);
-    if (keys.length === 0) return null;
+    const tableKeys = Object.keys(editableData[0]);
+    if (tableKeys.length === 0) return null;
 
     return (
       <div className="mt-4 border border-border rounded-lg overflow-hidden">
@@ -288,7 +397,7 @@ export function ChartRenderer({
           <table className="w-full text-sm">
             <thead className="bg-background-tertiary sticky top-0">
               <tr>
-                {keys.map((key) => (
+                {tableKeys.map((key) => (
                   <th
                     key={key}
                     className="px-3 py-2 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider border-b border-border"
@@ -297,14 +406,13 @@ export function ChartRenderer({
                   </th>
                 ))}
                 <th className="px-3 py-2 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider border-b border-border w-10">
-
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {editableData.map((row, rowIndex) => (
                 <tr key={rowIndex} className="hover:bg-background-secondary/50">
-                  {keys.map((key) => {
+                  {tableKeys.map((key) => {
                     const isEditing = editingCell?.row === rowIndex && editingCell?.col === key;
                     const isNumeric = firstItem && typeof firstItem[key] === 'number';
 
@@ -321,15 +429,15 @@ export function ChartRenderer({
                                 setEditingCell(null);
                               } else if (e.key === 'Tab') {
                                 e.preventDefault();
-                                const currentKeyIndex = keys.indexOf(key);
-                                const nextKey = keys[currentKeyIndex + 1];
-                                const prevKey = keys[currentKeyIndex - 1];
+                                const currentKeyIndex = tableKeys.indexOf(key);
+                                const nextKey = tableKeys[currentKeyIndex + 1];
+                                const prevKey = tableKeys[currentKeyIndex - 1];
                                 if (e.shiftKey && prevKey) {
                                   setEditingCell({ row: rowIndex, col: prevKey });
                                 } else if (!e.shiftKey && nextKey) {
                                   setEditingCell({ row: rowIndex, col: nextKey });
                                 } else if (!e.shiftKey && rowIndex < editableData.length - 1) {
-                                  setEditingCell({ row: rowIndex + 1, col: keys[0] });
+                                  setEditingCell({ row: rowIndex + 1, col: tableKeys[0] });
                                 }
                               }
                             }}
@@ -382,179 +490,7 @@ export function ChartRenderer({
     );
   };
 
-  const renderChart = () => {
-    // Common zoom props for cartesian charts
-    const zoomProps = enableZoom && type !== 'pie' ? {
-      onMouseDown: handleMouseDown,
-      onMouseMove: handleMouseMove,
-      onMouseUp: handleMouseUp,
-    } : {};
-
-    switch (type) {
-      case 'bar':
-        return (
-          <BarChart {...commonProps} {...zoomProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />}
-            <XAxis dataKey={xKey} stroke={textColor} fontSize={12} />
-            <YAxis stroke={textColor} fontSize={12} />
-            <Tooltip contentStyle={tooltipStyle} />
-            {showLegend && <Legend />}
-            {yKeys.map((key, index) => (
-              <Bar
-                key={key}
-                dataKey={key}
-                fill={colors[index % colors.length]}
-                radius={[4, 4, 0, 0]}
-              />
-            ))}
-            {enableZoom && zoomState.refAreaLeft && zoomState.refAreaRight && (
-              <ReferenceArea
-                x1={zoomState.refAreaLeft}
-                x2={zoomState.refAreaRight}
-                strokeOpacity={0.3}
-                fill="#3b82f6"
-                fillOpacity={0.3}
-              />
-            )}
-          </BarChart>
-        );
-
-      case 'line':
-        return (
-          <LineChart {...commonProps} {...zoomProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />}
-            <XAxis dataKey={xKey} stroke={textColor} fontSize={12} />
-            <YAxis stroke={textColor} fontSize={12} />
-            <Tooltip contentStyle={tooltipStyle} />
-            {showLegend && <Legend />}
-            {yKeys.map((key, index) => (
-              <Line
-                key={key}
-                type="monotone"
-                dataKey={key}
-                stroke={colors[index % colors.length]}
-                strokeWidth={2}
-                dot={{ fill: colors[index % colors.length], strokeWidth: 0, r: 4 }}
-                activeDot={{ r: 6, strokeWidth: 0 }}
-              />
-            ))}
-            {enableZoom && zoomState.refAreaLeft && zoomState.refAreaRight && (
-              <ReferenceArea
-                x1={zoomState.refAreaLeft}
-                x2={zoomState.refAreaRight}
-                strokeOpacity={0.3}
-                fill="#3b82f6"
-                fillOpacity={0.3}
-              />
-            )}
-          </LineChart>
-        );
-
-      case 'area':
-        return (
-          <AreaChart {...commonProps} {...zoomProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />}
-            <XAxis dataKey={xKey} stroke={textColor} fontSize={12} />
-            <YAxis stroke={textColor} fontSize={12} />
-            <Tooltip contentStyle={tooltipStyle} />
-            {showLegend && <Legend />}
-            {yKeys.map((key, index) => (
-              <Area
-                key={key}
-                type="monotone"
-                dataKey={key}
-                stroke={colors[index % colors.length]}
-                fill={colors[index % colors.length]}
-                fillOpacity={0.3}
-                strokeWidth={2}
-              />
-            ))}
-            {enableZoom && zoomState.refAreaLeft && zoomState.refAreaRight && (
-              <ReferenceArea
-                x1={zoomState.refAreaLeft}
-                x2={zoomState.refAreaRight}
-                strokeOpacity={0.3}
-                fill="#3b82f6"
-                fillOpacity={0.3}
-              />
-            )}
-          </AreaChart>
-        );
-
-      case 'pie':
-        const pieData = data.map((item, index) => ({
-          ...item,
-          fill: colors[index % colors.length],
-        }));
-        const valueKey = yKeys[0] || 'value';
-
-        return (
-          <PieChart>
-            <Pie
-              data={pieData}
-              dataKey={valueKey}
-              nameKey={xKey}
-              cx="50%"
-              cy="50%"
-              outerRadius={100}
-              innerRadius={60}
-              paddingAngle={2}
-              label={({ name, percent }) =>
-                `${name} ${(percent * 100).toFixed(0)}%`
-              }
-              labelLine={false}
-            >
-              {pieData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={colors[index % colors.length]}
-                />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={tooltipStyle} />
-            {showLegend && <Legend />}
-          </PieChart>
-        );
-
-      case 'scatter':
-        return (
-          <ScatterChart {...commonProps} {...zoomProps}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />}
-            <XAxis dataKey={yKeys[0]} name={yKeys[0]} stroke={textColor} fontSize={12} />
-            <YAxis dataKey={yKeys[1]} name={yKeys[1]} stroke={textColor} fontSize={12} />
-            <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray: '3 3' }} />
-            {showLegend && <Legend />}
-            <Scatter name="Data" data={chartData} fill={colors[0]}>
-              {chartData.map((_, index) => (
-                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-              ))}
-            </Scatter>
-            {enableZoom && zoomState.refAreaLeft && zoomState.refAreaRight && (
-              <ReferenceArea
-                x1={zoomState.refAreaLeft}
-                x2={zoomState.refAreaRight}
-                strokeOpacity={0.3}
-                fill="#3b82f6"
-                fillOpacity={0.3}
-              />
-            )}
-          </ScatterChart>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  const chart = renderChart();
-
-  if (!chart) {
-    return (
-      <div style={{ height }} className="flex items-center justify-center rounded-lg bg-background-tertiary">
-        <p className="text-foreground-tertiary">Unsupported chart type</p>
-      </div>
-    );
-  }
+  const options = getChartOptions();
 
   return (
     <div
@@ -580,7 +516,7 @@ export function ChartRenderer({
           <>
             {isZoomed && (
               <button
-                onClick={handleZoomOut}
+                onClick={handleResetZoom}
                 className="p-1.5 rounded-md bg-background-tertiary/80 hover:bg-background-tertiary text-foreground-secondary hover:text-foreground transition-colors"
                 title="Reset zoom"
               >
@@ -602,9 +538,12 @@ export function ChartRenderer({
       </div>
 
       <div style={{ height }}>
-        <ResponsiveContainer width="100%" height="100%">
-          {chart}
-        </ResponsiveContainer>
+        <HighchartsReact
+          highcharts={Highcharts}
+          options={options}
+          ref={chartRef}
+          containerProps={{ style: { height: '100%', width: '100%' } }}
+        />
       </div>
 
       {/* Zoom instructions */}
