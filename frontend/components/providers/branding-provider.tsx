@@ -48,9 +48,11 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty('--brand-font', branding.font);
 
     // Set chart colors
-    branding.chartColors.forEach((color, index) => {
-      root.style.setProperty(`--chart-color-${index + 1}`, color);
-    });
+    if (branding.chartColors && Array.isArray(branding.chartColors)) {
+      branding.chartColors.forEach((color, index) => {
+        root.style.setProperty(`--chart-color-${index + 1}`, color);
+      });
+    }
   }, [branding]);
 
   // Handle responsive detection

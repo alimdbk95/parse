@@ -506,6 +506,73 @@ router.patch('/:analysisId/messages/:messageId', authenticate, async (req: AuthR
   }
 });
 
+// Update message metadata (chart data, etc.)
+router.patch('/:analysisId/messages/:messageId/metadata', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { metadata } = req.body;
+    const { analysisId, messageId } = req.params;
+
+    // Verify access to analysis
+    const analysis = await prisma.analysis.findFirst({
+      where: {
+        id: analysisId,
+        OR: [
+          { createdById: req.user!.id },
+          {
+            workspace: {
+              members: {
+                some: { userId: req.user!.id, role: { in: ['admin', 'editor'] } },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    if (!analysis) {
+      return res.status(404).json({ error: 'Analysis not found' });
+    }
+
+    // Get current message metadata
+    const currentMessage = await prisma.message.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!currentMessage) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    // Merge existing metadata with new metadata
+    const existingMetadata = currentMessage.metadata
+      ? (typeof currentMessage.metadata === 'string' ? JSON.parse(currentMessage.metadata) : currentMessage.metadata)
+      : {};
+    const mergedMetadata = { ...existingMetadata, ...metadata };
+
+    // Update the message
+    const message = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        metadata: JSON.stringify(mergedMetadata),
+        updatedAt: new Date(),
+      },
+      include: {
+        user: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    // Emit socket event
+    const io = req.app.get('io');
+    io.to(`analysis:${analysisId}`).emit('message-metadata-updated', { message });
+
+    res.json({ message });
+  } catch (error) {
+    console.error('Update message metadata error:', error);
+    res.status(500).json({ error: 'Failed to update message metadata' });
+  }
+});
+
 // Add comment to message
 router.post('/:analysisId/messages/:messageId/comments', authenticate, async (req: AuthRequest, res) => {
   try {

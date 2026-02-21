@@ -61,10 +61,18 @@ export default function ChatPage() {
         setEditedTitle(analysis.title);
 
         // Parse message metadata (including charts) from JSON strings
-        const parsedMessages = (analysis.messages || []).map((msg: any) => ({
-          ...msg,
-          metadata: msg.metadata ? (typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata) : null,
-        }));
+        const parsedMessages = (analysis.messages || []).map((msg: any) => {
+          let metadata = null;
+          if (msg.metadata) {
+            try {
+              metadata = typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata;
+            } catch (e) {
+              console.error('Failed to parse message metadata:', e);
+              metadata = null;
+            }
+          }
+          return { ...msg, metadata };
+        });
         setMessages(parsedMessages);
         setDocuments(analysis.documents?.map((d: any) => d.document) || []);
 
@@ -232,6 +240,25 @@ export default function ChatPage() {
       });
     } catch (error) {
       console.error('Failed to delete comment:', error);
+    }
+  };
+
+  const handleChartDataChange = async (messageId: string, newChartData: any) => {
+    // Update the local messages state with the new chart data
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? { ...m, metadata: { ...m.metadata, chart: newChartData } }
+          : m
+      )
+    );
+
+    // Optionally persist to the backend
+    try {
+      await api.updateMessageMetadata(analysisId, messageId, { chart: newChartData });
+    } catch (error) {
+      console.error('Failed to persist chart data changes:', error);
+      // Changes are still reflected locally
     }
   };
 
@@ -444,6 +471,7 @@ export default function ChatPage() {
           onEditMessage={canEdit ? handleEditMessage : undefined}
           onAddComment={handleAddComment}
           onDeleteComment={handleDeleteComment}
+          onChartDataChange={canEdit ? handleChartDataChange : undefined}
           readOnly={!canEdit}
         />
 

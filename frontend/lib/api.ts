@@ -438,6 +438,13 @@ class ApiClient {
     });
   }
 
+  async updateMessageMetadata(analysisId: string, messageId: string, metadata: any) {
+    return this.request<{ message: any }>(`/analyses/${analysisId}/messages/${messageId}/metadata`, {
+      method: 'PATCH',
+      body: { metadata },
+    });
+  }
+
   async addMessageComment(analysisId: string, messageId: string, content: string) {
     return this.request<{ comment: any }>(`/analyses/${analysisId}/messages/${messageId}/comments`, {
       method: 'POST',
