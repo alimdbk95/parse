@@ -1,5 +1,6 @@
 // URL Service for fetching and parsing web content
 import * as cheerio from 'cheerio';
+import fetch from 'node-fetch';
 
 interface FetchedContent {
   url: string;
@@ -54,21 +55,20 @@ class UrlService {
         };
       }
 
-      // Fetch the page
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': this.userAgent,
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-        },
-        signal: controller.signal,
-        redirect: 'follow',
-      });
-
-      clearTimeout(timeoutId);
+      // Fetch the page with timeout
+      const response = await Promise.race([
+        fetch(url, {
+          headers: {
+            'User-Agent': this.userAgent,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+          },
+          redirect: 'follow',
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('TIMEOUT')), this.timeout)
+        ),
+      ]);
 
       if (!response.ok) {
         return {
@@ -122,7 +122,7 @@ class UrlService {
       return this.parseHtml(url, html);
 
     } catch (error: any) {
-      if (error.name === 'AbortError') {
+      if (error.message === 'TIMEOUT') {
         return {
           url,
           title: '',
