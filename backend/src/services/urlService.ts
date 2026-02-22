@@ -1,6 +1,5 @@
 // URL Service for fetching and parsing web content
-import * as cheerio from 'cheerio';
-import fetch from 'node-fetch';
+// Using dynamic imports to avoid ESM/CJS issues
 
 interface FetchedContent {
   url: string;
@@ -19,6 +18,25 @@ class UrlService {
   private readonly userAgent = 'Mozilla/5.0 (compatible; ParseBot/1.0; +https://parse.app)';
   private readonly maxContentLength = 50000; // Max characters to extract
   private readonly timeout = 15000; // 15 second timeout
+  private cheerio: any = null;
+  private fetch: any = null;
+  private initialized = false;
+
+  private async init() {
+    if (this.initialized) return;
+    try {
+      // Dynamic imports to avoid module resolution issues
+      const cheerioModule = await import('cheerio');
+      this.cheerio = cheerioModule;
+
+      const fetchModule = await import('node-fetch');
+      this.fetch = fetchModule.default;
+
+      this.initialized = true;
+    } catch (error) {
+      console.error('Failed to initialize URL service dependencies:', error);
+    }
+  }
 
   /**
    * Detect URLs in text
@@ -41,6 +59,19 @@ class UrlService {
    * Fetch and parse content from a URL
    */
   async fetchUrl(url: string): Promise<FetchedContent> {
+    await this.init();
+
+    if (!this.fetch || !this.cheerio) {
+      return {
+        url,
+        title: '',
+        content: '',
+        wordCount: 0,
+        success: false,
+        error: 'URL fetching service not available',
+      };
+    }
+
     try {
       // Validate URL
       const parsedUrl = new URL(url);
@@ -57,7 +88,7 @@ class UrlService {
 
       // Fetch the page with timeout
       const response = await Promise.race([
-        fetch(url, {
+        this.fetch(url, {
           headers: {
             'User-Agent': this.userAgent,
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -148,7 +179,7 @@ class UrlService {
    * Parse HTML and extract content
    */
   private parseHtml(url: string, html: string): FetchedContent {
-    const $ = cheerio.load(html);
+    const $ = this.cheerio.load(html);
 
     // Remove unwanted elements
     $('script, style, nav, header, footer, aside, .sidebar, .comments, .advertisement, .ads, [role="navigation"], [role="banner"], [role="complementary"]').remove();
@@ -207,7 +238,7 @@ class UrlService {
     content = this.cleanText(content);
     content = content.slice(0, this.maxContentLength);
 
-    const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
+    const wordCount = content.split(/\s+/).filter((word: string) => word.length > 0).length;
 
     return {
       url,
@@ -225,11 +256,11 @@ class UrlService {
   /**
    * Extract text from a cheerio element
    */
-  private extractTextFromElement($: cheerio.CheerioAPI, element: cheerio.Cheerio<any>): string {
+  private extractTextFromElement($: any, element: any): string {
     const parts: string[] = [];
 
     // Process headings and paragraphs
-    element.find('h1, h2, h3, h4, h5, h6, p, li, td, th, blockquote, pre').each((_, el) => {
+    element.find('h1, h2, h3, h4, h5, h6, p, li, td, th, blockquote, pre').each((_: number, el: any) => {
       const tagName = el.tagName?.toLowerCase();
       let text = $(el).text().trim();
 
