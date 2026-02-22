@@ -1,5 +1,6 @@
 // AI Service for document analysis using Claude API
 import Anthropic from '@anthropic-ai/sdk';
+import { urlService } from './urlService';
 
 interface AnalysisContext {
   documents: {
@@ -61,6 +62,25 @@ class ClaudeAIService {
     }
 
     try {
+      // Detect and fetch URLs in the user message
+      let urlContext = '';
+      const detectedUrls = urlService.detectUrls(userMessage);
+      if (detectedUrls.length > 0) {
+        console.log(`Detected ${detectedUrls.length} URL(s) in message:`, detectedUrls);
+        const fetchedContents = await urlService.fetchUrls(detectedUrls);
+        urlContext = urlService.formatForContext(fetchedContents);
+
+        // Log results for debugging
+        const successful = fetchedContents.filter(c => c.success);
+        const failed = fetchedContents.filter(c => !c.success);
+        if (successful.length > 0) {
+          console.log(`Successfully fetched ${successful.length} URL(s)`);
+        }
+        if (failed.length > 0) {
+          console.log(`Failed to fetch ${failed.length} URL(s):`, failed.map(f => f.error));
+        }
+      }
+
       // Build context from documents with intelligent chunking for large docs
       let documentContext = '';
       if (context.documents.length > 0) {
@@ -116,6 +136,7 @@ class ClaudeAIService {
 4. **Comparative Analysis** - Compare metrics across categories, time periods, or datasets
 5. **Data Visualization** - Generate appropriate charts based on data characteristics
 6. **Research Support** - Help with literature analysis, methodology review, findings synthesis
+7. **Web Content Analysis** - Analyze articles, blog posts, and web pages from URLs shared by users
 
 ## RESPONSE GUIDELINES
 
@@ -195,7 +216,7 @@ Use clear markdown formatting:
 - Bullet points for lists of findings
 - Numbers with appropriate precision (don't over-specify)
 
-${documentContext}`;
+${documentContext}${urlContext}`;
 
       const response = await this.client.messages.create({
         model: 'claude-sonnet-4-20250514',
@@ -301,6 +322,23 @@ ${documentContext}`;
   ): AIResponse {
     const lowerMessage = userMessage.toLowerCase();
     const hasDocuments = context.documents.length > 0;
+
+    // Check for URLs in the message
+    const detectedUrls = urlService.detectUrls(userMessage);
+    if (detectedUrls.length > 0) {
+      return {
+        text: `I detected ${detectedUrls.length} URL(s) in your message:
+${detectedUrls.map(url => `- ${url}`).join('\n')}
+
+**Note:** Running in demo mode. Add \`ANTHROPIC_API_KEY\` to enable full URL analysis capabilities including:
+- Full article content extraction
+- Key insights and summary
+- Data extraction from web pages
+- Sentiment and topic analysis
+
+With the API configured, I can fetch and analyze the content from these URLs automatically.`,
+      };
+    }
 
     // Check for pasted data
     const { hasData, dataType, parsedData } = this.detectPastedData(userMessage);
