@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Plus } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '@/components/layout/sidebar';
 import { useStore } from '@/lib/store';
 import { api } from '@/lib/api';
@@ -26,6 +27,35 @@ export default function DashboardLayout({
   } = useStore();
   const [loading, setLoading] = useState(true);
   const [analyses, setLocalAnalyses] = useState<any[]>([]);
+
+  // Touch handling for swipe gestures
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  const minSwipeDistance = 50;
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  }, []);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isRightSwipe && !sidebarOpen && touchStart < 30) {
+      setSidebarOpen(true);
+    }
+    if (isLeftSwipe && sidebarOpen) {
+      setSidebarOpen(false);
+    }
+  }, [touchStart, touchEnd, sidebarOpen, setSidebarOpen]);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -66,6 +96,7 @@ export default function DashboardLayout({
         title: 'New Analysis',
       });
       setLocalAnalyses((prev) => [analysis, ...prev]);
+      if (isMobile) setSidebarOpen(false);
       router.push(`/dashboard/chat/${analysis.id}`);
     } catch (error) {
       console.error('Failed to create analysis:', error);
@@ -85,48 +116,102 @@ export default function DashboardLayout({
 
   return (
     <BrandingProvider>
-      <div className="flex h-screen bg-background">
-        {/* Mobile Header */}
-        {isMobile && (
-          <div className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background-secondary px-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-background-tertiary"
+      <div
+        className="flex h-[100dvh] bg-background overflow-hidden"
+        onTouchStart={isMobile ? onTouchStart : undefined}
+        onTouchMove={isMobile ? onTouchMove : undefined}
+        onTouchEnd={isMobile ? onTouchEnd : undefined}
+      >
+        {/* Mobile Header - Claude style */}
+        <AnimatePresence>
+          {isMobile && (
+            <motion.header
+              initial={{ y: -56 }}
+              animate={{ y: 0 }}
+              className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b border-border bg-background/95 backdrop-blur-md px-3 safe-area-top"
             >
-              {sidebarOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
-            </button>
-            <span className="text-sm font-medium">Parse</span>
-            <div className="w-10" />
-          </div>
-        )}
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-background-tertiary active:scale-95 transition-all"
+                aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
+              >
+                <AnimatePresence mode="wait">
+                  {sidebarOpen ? (
+                    <motion.div
+                      key="close"
+                      initial={{ rotate: -90, opacity: 0 }}
+                      animate={{ rotate: 0, opacity: 1 }}
+                      exit={{ rotate: 90, opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <X className="h-5 w-5" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="menu"
+                      initial={{ rotate: 90, opacity: 0 }}
+                      animate={{ rotate: 0, opacity: 1 }}
+                      exit={{ rotate: -90, opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <Menu className="h-5 w-5" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </button>
 
-        {/* Sidebar Overlay for Mobile */}
-        {isMobile && sidebarOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-black/50"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center">
+                  <span className="text-xs font-bold text-white">P</span>
+                </div>
+                <span className="text-sm font-semibold">Parse</span>
+              </div>
 
-        {/* Sidebar */}
-        <div
-          className={cn(
-            'z-50',
-            isMobile && 'fixed inset-y-0 left-0 transition-transform duration-300',
-            isMobile && !sidebarOpen && '-translate-x-full'
+              <button
+                onClick={handleNewAnalysis}
+                className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-background-tertiary active:scale-95 transition-all"
+                aria-label="New analysis"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+            </motion.header>
           )}
+        </AnimatePresence>
+
+        {/* Sidebar Overlay for Mobile - smooth fade */}
+        <AnimatePresence>
+          {isMobile && sidebarOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Sidebar - slide in from left on mobile */}
+        <motion.div
+          className={cn(
+            'z-50 flex-shrink-0',
+            isMobile && 'fixed inset-y-0 left-0'
+          )}
+          initial={isMobile ? { x: '-100%' } : false}
+          animate={isMobile ? { x: sidebarOpen ? 0 : '-100%' } : {}}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         >
-          <Sidebar analyses={analyses} onNewAnalysis={handleNewAnalysis} />
-        </div>
+          <Sidebar
+            analyses={analyses}
+            onNewAnalysis={handleNewAnalysis}
+          />
+        </motion.div>
 
         {/* Main Content */}
         <main
           className={cn(
-            'flex-1 overflow-hidden',
+            'flex-1 overflow-hidden flex flex-col',
             isMobile && 'pt-14'
           )}
         >

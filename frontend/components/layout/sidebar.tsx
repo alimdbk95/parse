@@ -59,32 +59,37 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
   return (
     <motion.aside
       initial={false}
-      animate={{ width: isMobile ? 280 : sidebarOpen ? 280 : 72 }}
-      className="flex h-screen flex-col border-r border-border bg-background-secondary"
+      animate={{ width: isMobile ? '85vw' : sidebarOpen ? 280 : 72 }}
+      className={cn(
+        "flex flex-col border-r border-border bg-background-secondary",
+        isMobile ? "h-[100dvh] max-w-[320px] pt-14 safe-area-top" : "h-screen"
+      )}
     >
-      {/* Header */}
-      <div className="flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
-          {sidebarOpen ? (
-            <Logo size="sm" />
-          ) : (
-            <LogoIcon size={36} />
-          )}
-        </Link>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="text-foreground-tertiary"
-        >
-          <ChevronLeft
-            className={cn(
-              'h-4 w-4 transition-transform',
-              !sidebarOpen && 'rotate-180'
+      {/* Header - hidden on mobile (using top header instead) */}
+      {!isMobile && (
+        <div className="flex h-16 items-center justify-between px-4">
+          <Link href="/" className="flex items-center gap-2">
+            {sidebarOpen ? (
+              <Logo size="sm" />
+            ) : (
+              <LogoIcon size={36} />
             )}
-          />
-        </Button>
-      </div>
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="text-foreground-tertiary"
+          >
+            <ChevronLeft
+              className={cn(
+                'h-4 w-4 transition-transform',
+                !sidebarOpen && 'rotate-180'
+              )}
+            />
+          </Button>
+        </div>
+      )}
 
       {/* New Analysis Button */}
       <div className="px-3 py-2">

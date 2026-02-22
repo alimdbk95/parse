@@ -112,7 +112,7 @@ export function MessageList({
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto scroll-smooth relative"
+      className="flex-1 overflow-y-auto scroll-smooth relative overscroll-contain"
     >
       {messages.length === 0 ? (
         <div className="flex h-full items-center justify-center p-8">
@@ -262,7 +262,7 @@ export function MessageList({
       {/* Scroll anchor */}
       <div ref={bottomRef} className="h-px" />
 
-      {/* Scroll to bottom button */}
+      {/* Scroll to bottom button - responsive positioning */}
       <AnimatePresence>
         {showScrollButton && (
           <motion.button
@@ -272,15 +272,15 @@ export function MessageList({
             transition={{ duration: 0.2 }}
             onClick={scrollToBottom}
             className={cn(
-              "fixed bottom-32 left-1/2 -translate-x-1/2 z-20",
-              "flex items-center gap-2 px-4 py-2 rounded-full",
-              "bg-background-secondary/90 backdrop-blur-sm border border-border",
-              "text-sm text-foreground-secondary hover:text-foreground",
-              "shadow-lg hover:shadow-xl transition-all hover:bg-background-secondary"
+              "fixed bottom-24 sm:bottom-32 left-1/2 -translate-x-1/2 z-20",
+              "flex items-center gap-2 px-3 py-2 sm:px-4 rounded-full",
+              "bg-background-secondary/95 backdrop-blur-md border border-border",
+              "text-sm text-foreground-secondary active:text-foreground",
+              "shadow-lg active:shadow-xl transition-all active:bg-background-secondary"
             )}
           >
             <ArrowDown className="h-4 w-4" />
-            <span>Scroll to bottom</span>
+            <span className="hidden sm:inline">Scroll to bottom</span>
           </motion.button>
         )}
       </AnimatePresence>

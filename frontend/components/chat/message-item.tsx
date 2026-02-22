@@ -332,11 +332,11 @@ export function MessageItem({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
       className={cn(
-        'py-6 group',
+        'py-4 sm:py-6 group',
         isUser ? 'bg-transparent' : 'bg-background-secondary/30'
       )}
     >
-      <div className="max-w-3xl mx-auto px-6">
+      <div className="max-w-3xl mx-auto px-3 sm:px-6">
         {isUser ? (
           // User message - simple, right-aligned feel with animation
           <motion.div
@@ -345,8 +345,8 @@ export function MessageItem({
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="bg-primary/10 rounded-2xl px-4 py-3 max-w-[85%] hover:bg-primary/15 transition-colors">
-              <p className="text-foreground">{message.content}</p>
+            <div className="bg-primary/10 rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 max-w-[90%] sm:max-w-[85%] active:bg-primary/15 transition-colors">
+              <p className="text-foreground text-sm sm:text-base">{message.content}</p>
             </div>
           </motion.div>
         ) : (
@@ -412,7 +412,7 @@ export function MessageItem({
             </motion.div>
 
             {/* Content */}
-            <div className="pl-8">
+            <div className="pl-0 sm:pl-8">
               <AnimatePresence mode="wait">
                 {isEditing ? (
                   <motion.div
@@ -430,18 +430,19 @@ export function MessageItem({
                       className={cn(
                         "w-full min-h-[120px] p-3 rounded-lg",
                         "bg-background-secondary border border-border",
-                        "text-foreground text-sm leading-relaxed",
+                        "text-foreground text-sm sm:text-base leading-relaxed",
                         "focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20",
                         "resize-none transition-all",
                         "placeholder:text-foreground-tertiary"
                       )}
+                      style={{ fontSize: '16px' }} // Prevents iOS zoom
                       placeholder="Edit the response..."
                       disabled={isSaving}
                     />
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-foreground-tertiary">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                      <p className="hidden sm:block text-xs text-foreground-tertiary">
                         <kbd className="px-1.5 py-0.5 rounded bg-background-tertiary text-[10px] font-medium">
-                          {navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+Enter
+                          {typeof navigator !== 'undefined' && navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+Enter
                         </kbd>
                         {' '}to save,{' '}
                         <kbd className="px-1.5 py-0.5 rounded bg-background-tertiary text-[10px] font-medium">Esc</kbd>
@@ -451,22 +452,20 @@ export function MessageItem({
                         <motion.button
                           onClick={handleCancelEdit}
                           disabled={isSaving}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="px-3 py-1.5 rounded-lg text-sm text-foreground-secondary hover:text-foreground hover:bg-background-tertiary transition-colors disabled:opacity-50"
+                          whileTap={{ scale: 0.95 }}
+                          className="flex-1 sm:flex-none px-3 py-2 sm:py-1.5 rounded-lg text-sm text-foreground-secondary hover:text-foreground hover:bg-background-tertiary active:bg-background-tertiary transition-colors disabled:opacity-50"
                         >
                           Cancel
                         </motion.button>
                         <motion.button
                           onClick={handleSaveEdit}
                           disabled={isSaving || editedContent.trim() === message.content}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
+                          whileTap={{ scale: 0.95 }}
                           className={cn(
-                            "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5",
+                            "flex-1 sm:flex-none px-3 py-2 sm:py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5",
                             editedContent.trim() !== message.content
-                              ? "bg-primary text-white hover:bg-primary/90"
-                              : "bg-background-tertiary text-foreground-tertiary cursor-not-allowed"
+                              ? "bg-primary text-white active:bg-primary/80"
+                              : "bg-background-tertiary text-foreground-tertiary"
                           )}
                         >
                           {isSaving ? (
@@ -515,20 +514,22 @@ export function MessageItem({
             <AnimatePresence>
               {chartData && !isAnimating && (
                 <motion.div
-                  className="pl-8 mt-4"
+                  className="pl-0 sm:pl-8 mt-4"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: 0.1 }}
                 >
-                  <div className="rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-colors">
-                    <h4 className="mb-3 font-medium text-foreground">{chartData.title}</h4>
-                    <ChartRenderer
-                      type={chartData.type}
-                      data={chartData.data}
-                      height={300}
-                      enableEdit={true}
-                      onDataChange={handleChartDataChange}
-                    />
+                  <div className="rounded-xl border border-border bg-card p-3 sm:p-4 active:border-primary/30 transition-colors overflow-hidden">
+                    <h4 className="mb-3 font-medium text-foreground text-sm sm:text-base">{chartData.title}</h4>
+                    <div className="-mx-2 sm:mx-0">
+                      <ChartRenderer
+                        type={chartData.type}
+                        data={chartData.data}
+                        height={250}
+                        enableEdit={true}
+                        onDataChange={handleChartDataChange}
+                      />
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -538,7 +539,7 @@ export function MessageItem({
             <AnimatePresence>
               {showActions && !isEditing && (
                 <motion.div
-                  className="pl-8 flex items-center gap-1 mt-4"
+                  className="pl-0 sm:pl-8 flex items-center gap-0.5 sm:gap-1 mt-3 sm:mt-4"
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 5 }}
@@ -546,9 +547,8 @@ export function MessageItem({
                 >
                   <motion.button
                     onClick={handleCopy}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors"
+                    whileTap={{ scale: 0.9 }}
+                    className="p-2.5 sm:p-2 rounded-lg text-foreground-tertiary hover:text-foreground active:bg-background-tertiary transition-colors"
                     title="Copy"
                   >
                     <AnimatePresence mode="wait">
@@ -575,13 +575,12 @@ export function MessageItem({
                   </motion.button>
                   <motion.button
                     onClick={() => setFeedback(feedback === 'up' ? null : 'up')}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileTap={{ scale: 0.9 }}
                     className={cn(
-                      "p-2 rounded-lg transition-colors",
+                      "p-2.5 sm:p-2 rounded-lg transition-colors",
                       feedback === 'up'
                         ? "text-green-500 bg-green-500/10"
-                        : "text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary"
+                        : "text-foreground-tertiary active:bg-background-tertiary"
                     )}
                     title="Good response"
                   >
@@ -589,13 +588,12 @@ export function MessageItem({
                   </motion.button>
                   <motion.button
                     onClick={() => setFeedback(feedback === 'down' ? null : 'down')}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileTap={{ scale: 0.9 }}
                     className={cn(
-                      "p-2 rounded-lg transition-colors",
+                      "p-2.5 sm:p-2 rounded-lg transition-colors",
                       feedback === 'down'
                         ? "text-red-500 bg-red-500/10"
-                        : "text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary"
+                        : "text-foreground-tertiary active:bg-background-tertiary"
                     )}
                     title="Bad response"
                   >
@@ -604,10 +602,9 @@ export function MessageItem({
                   {onRetry && (
                     <motion.button
                       onClick={onRetry}
-                      whileHover={{ scale: 1.1, rotate: 180 }}
-                      whileTap={{ scale: 0.95 }}
+                      whileTap={{ scale: 0.9, rotate: 180 }}
                       transition={{ duration: 0.3 }}
-                      className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors"
+                      className="p-2.5 sm:p-2 rounded-lg text-foreground-tertiary active:bg-background-tertiary transition-colors"
                       title="Regenerate"
                     >
                       <RefreshCw className="h-4 w-4" />

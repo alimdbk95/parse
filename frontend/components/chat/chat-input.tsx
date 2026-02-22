@@ -69,16 +69,16 @@ export function ChatInput({
   const canSend = message.trim() && !disabled;
 
   return (
-    <div className="border-t border-border bg-background/80 backdrop-blur-sm">
-      <div className="max-w-3xl mx-auto p-4">
-        {/* Attached files */}
+    <div className="border-t border-border bg-background/95 backdrop-blur-md safe-area-bottom">
+      <div className="max-w-3xl mx-auto px-3 py-3 sm:px-4 sm:py-4">
+        {/* Attached files - horizontal scroll on mobile */}
         <AnimatePresence>
           {attachedFiles.length > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="mb-3 flex flex-wrap gap-2"
+              className="mb-3 flex gap-2 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1"
             >
               {attachedFiles.map((file, index) => (
                 <motion.div
@@ -87,17 +87,17 @@ export function ChatInput({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ delay: index * 0.05 }}
-                  className="group flex items-center gap-2 rounded-lg bg-background-secondary px-3 py-1.5 text-sm border border-border hover:border-primary/50 transition-all hover:shadow-sm"
+                  className="group flex items-center gap-2 rounded-lg bg-background-secondary px-3 py-1.5 text-sm border border-border hover:border-primary/50 transition-all flex-shrink-0"
                 >
-                  <Paperclip className="h-3.5 w-3.5 text-foreground-tertiary" />
-                  <span className="truncate max-w-[200px] text-foreground-secondary">{file.name}</span>
+                  <Paperclip className="h-3.5 w-3.5 text-foreground-tertiary flex-shrink-0" />
+                  <span className="truncate max-w-[120px] sm:max-w-[200px] text-foreground-secondary text-xs sm:text-sm">{file.name}</span>
                   {onRemoveFile && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onRemoveFile(file.id);
                       }}
-                      className="p-0.5 rounded text-foreground-tertiary hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                      className="p-0.5 rounded text-foreground-tertiary hover:text-red-400 active:scale-95 transition-all"
                       title="Remove from analysis"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -109,25 +109,21 @@ export function ChatInput({
           )}
         </AnimatePresence>
 
-        {/* Input container */}
+        {/* Input container - Claude mobile style */}
         <motion.div
           className={cn(
-            "relative flex items-end gap-2 rounded-2xl border p-2 transition-all duration-200",
+            "relative flex items-end gap-1.5 sm:gap-2 rounded-2xl border p-1.5 sm:p-2 transition-all duration-200",
             isFocused
               ? "border-primary/50 bg-background-secondary shadow-lg shadow-primary/5"
-              : "border-border bg-background-secondary hover:border-border/80"
+              : "border-border bg-background-secondary"
           )}
-          animate={{
-            borderColor: isFocused ? 'rgba(59, 130, 246, 0.5)' : undefined,
-          }}
         >
           {/* Attach button */}
           {onAttach && (
             <motion.button
               onClick={onAttach}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex-shrink-0 p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors"
+              whileTap={{ scale: 0.9 }}
+              className="flex-shrink-0 p-2 sm:p-2.5 rounded-xl text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:bg-background-tertiary transition-colors"
               title="Attach files"
             >
               <Paperclip className="h-5 w-5" />
@@ -146,52 +142,45 @@ export function ChatInput({
             disabled={disabled}
             rows={1}
             className={cn(
-              'flex-1 resize-none bg-transparent py-2 px-2 text-foreground',
+              'flex-1 resize-none bg-transparent py-2.5 px-1 sm:px-2 text-foreground text-[16px] sm:text-sm',
               'placeholder:text-foreground-tertiary',
               'focus:outline-none',
               'disabled:cursor-not-allowed disabled:opacity-50',
-              'max-h-[200px] min-h-[40px]',
-              'scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent'
+              'max-h-[120px] sm:max-h-[200px] min-h-[44px]',
+              'scrollbar-none'
             )}
+            style={{ fontSize: '16px' }} // Prevents iOS zoom on focus
           />
 
           {/* Send button */}
           <motion.button
             onClick={handleSubmit}
             disabled={!canSend}
-            whileHover={canSend ? { scale: 1.05 } : {}}
-            whileTap={canSend ? { scale: 0.95 } : {}}
+            whileTap={canSend ? { scale: 0.9 } : {}}
             className={cn(
-              'flex-shrink-0 p-2 rounded-lg transition-all duration-200',
+              'flex-shrink-0 p-2.5 sm:p-2 rounded-xl transition-all duration-200',
               canSend
-                ? 'bg-primary text-white hover:bg-primary/90 shadow-md shadow-primary/20'
-                : 'bg-background-tertiary text-foreground-tertiary cursor-not-allowed'
+                ? 'bg-primary text-white active:bg-primary/80 shadow-md shadow-primary/20'
+                : 'bg-background-tertiary text-foreground-tertiary'
             )}
           >
-            <motion.div
-              animate={canSend ? { rotate: 0 } : { rotate: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ArrowUp className="h-5 w-5" />
-            </motion.div>
+            <ArrowUp className="h-5 w-5" />
           </motion.button>
         </motion.div>
 
-        {/* Helper text */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="mt-2 text-center text-xs text-foreground-tertiary"
-        >
-          <span className="inline-flex items-center gap-1">
+        {/* Helper text - simplified on mobile */}
+        <p className="mt-2 text-center text-[11px] sm:text-xs text-foreground-tertiary">
+          <span className="hidden sm:inline-flex items-center gap-1">
             <Sparkles className="h-3 w-3" />
             Paste CSV, JSON, or tabular data directly, or upload documents.
+            <span className="mx-1">•</span>
+            Press <kbd className="px-1.5 py-0.5 mx-1 rounded bg-background-tertiary text-[10px] font-medium">Enter</kbd> to send
           </span>
-          <span className="hidden sm:inline"> Press </span>
-          <kbd className="hidden sm:inline px-1.5 py-0.5 mx-1 rounded bg-background-tertiary text-[10px] font-medium">Enter</kbd>
-          <span className="hidden sm:inline">to send</span>
-        </motion.p>
+          <span className="sm:hidden inline-flex items-center gap-1">
+            <Sparkles className="h-3 w-3" />
+            Paste data or upload files to analyze
+          </span>
+        </p>
       </div>
     </div>
   );

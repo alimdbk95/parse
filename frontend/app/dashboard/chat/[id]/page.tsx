@@ -351,11 +351,11 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      {/* Minimal Header */}
-      <header className="flex h-12 items-center justify-between border-b border-border/50 px-2 md:px-4">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+      {/* Minimal Header - responsive */}
+      <header className="flex h-12 items-center justify-between border-b border-border/50 px-2 sm:px-4 flex-shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
           {isEditingTitle ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 flex-1">
               <Input
                 value={editedTitle}
                 onChange={(e) => setEditedTitle(e.target.value)}
@@ -366,17 +366,17 @@ export default function ChatPage() {
                     setEditedTitle(analysis?.title || '');
                   }
                 }}
-                className="h-8 max-w-xs"
+                className="h-8 flex-1 max-w-[200px] sm:max-w-xs text-sm"
                 autoFocus
               />
               <button
-                className="p-1.5 rounded hover:bg-background-tertiary"
+                className="p-1.5 rounded hover:bg-background-tertiary active:scale-95 transition-all"
                 onClick={handleEditTitle}
               >
                 <Check className="h-4 w-4 text-green-500" />
               </button>
               <button
-                className="p-1.5 rounded hover:bg-background-tertiary"
+                className="p-1.5 rounded hover:bg-background-tertiary active:scale-95 transition-all"
                 onClick={() => {
                   setIsEditingTitle(false);
                   setEditedTitle(analysis?.title || '');
@@ -386,13 +386,13 @@ export default function ChatPage() {
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 group">
-              <h1 className="text-sm font-medium text-foreground truncate">
+            <div className="flex items-center gap-2 group min-w-0">
+              <h1 className="text-sm font-medium text-foreground truncate max-w-[150px] sm:max-w-none">
                 {analysis?.title || 'New Analysis'}
               </h1>
               {canEdit && (
                 <button
-                  className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-background-tertiary transition-all"
+                  className="p-1 rounded opacity-100 sm:opacity-0 group-hover:opacity-100 hover:bg-background-tertiary active:scale-95 transition-all flex-shrink-0"
                   onClick={() => setIsEditingTitle(true)}
                 >
                   <Pencil className="h-3 w-3 text-foreground-tertiary" />
@@ -401,7 +401,7 @@ export default function ChatPage() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
           {!canEdit && (
             <span className="hidden sm:flex items-center gap-1 rounded-full bg-background-secondary px-2 py-0.5 text-xs text-foreground-tertiary mr-2">
               <Eye className="h-3 w-3" />
@@ -410,7 +410,7 @@ export default function ChatPage() {
           )}
           <button
             onClick={handleOpenSaveToRepo}
-            className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors"
+            className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all"
             title="Save to Repository"
           >
             <FolderPlus className="h-4 w-4" />
@@ -419,7 +419,7 @@ export default function ChatPage() {
             trigger={
               <button
                 disabled={exporting}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors disabled:opacity-50"
+                className="hidden sm:flex items-center gap-1 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors disabled:opacity-50"
                 title="Download"
               >
                 <Download className="h-4 w-4" />
@@ -446,22 +446,31 @@ export default function ChatPage() {
               Download Charts as JPEG
             </MenuItem>
           </Menu>
+          {/* Mobile download button */}
+          <button
+            onClick={handleExportPdf}
+            disabled={exporting}
+            className="sm:hidden p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all disabled:opacity-50"
+            title="Download PDF"
+          >
+            <Download className="h-4 w-4" />
+          </button>
           <button
             onClick={() => setShowDocuments(true)}
-            className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors"
+            className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all relative"
             title="Documents"
           >
             <Paperclip className="h-4 w-4" />
+            {documents.length > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] text-white flex items-center justify-center font-medium">
+                {documents.length}
+              </span>
+            )}
           </button>
-          {documents.length > 0 && (
-            <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-              {documents.length}
-            </span>
-          )}
         </div>
       </header>
 
-        {/* Messages */}
+      {/* Messages */}
         <MessageList
           messages={messages}
           loading={sending}
