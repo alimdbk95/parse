@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Paperclip, Plus, Pencil, Check, X, Download, Eye, FolderPlus, Folder, FileText, Image, ChevronDown, MessageSquare } from 'lucide-react';
 import { MessageList } from '@/components/chat/message-list';
 import { ChatInput } from '@/components/chat/chat-input';
+import { CommentPanel } from '@/components/chat/comment-panel';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
@@ -12,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DocumentListItem } from '@/components/documents/document-card';
 import { UploadZone } from '@/components/documents/upload-zone';
 import { Menu, MenuItem } from '@/components/ui/dropdown';
+import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useStore } from '@/lib/store';
 
@@ -48,6 +50,7 @@ export default function ChatPage() {
 
   // Comments state
   const [messageComments, setMessageComments] = useState<Record<string, Comment[]>>({});
+  const [showCommentPanel, setShowCommentPanel] = useState(false);
 
   // Check if user can edit (admin or editor)
   const canEdit = userRole === 'admin' || userRole === 'editor';
@@ -271,6 +274,28 @@ export default function ChatPage() {
     }
   };
 
+  // Build comment threads for the panel
+  const commentThreads = messages
+    .filter((msg) => msg.role === 'assistant' && messageComments[msg.id]?.length > 0)
+    .map((msg) => ({
+      messageId: msg.id,
+      messagePreview: msg.content.slice(0, 150) + (msg.content.length > 150 ? '...' : ''),
+      comments: messageComments[msg.id] || [],
+    }));
+
+  // Scroll to a specific message
+  const handleScrollToMessage = (messageId: string) => {
+    const element = document.getElementById(`message-${messageId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight briefly
+      element.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+      setTimeout(() => {
+        element.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+      }, 2000);
+    }
+  };
+
   const handleChartDataChange = async (messageId: string, newChartData: any) => {
     // Update the local messages state with the new chart data
     setMessages((prev) =>
@@ -480,7 +505,13 @@ export default function ChatPage() {
           </Menu>
           {/* Comments indicator */}
           <button
-            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all relative"
+            onClick={() => setShowCommentPanel(true)}
+            className={cn(
+              "flex items-center gap-1.5 px-2 py-1.5 rounded-lg active:scale-95 transition-all relative",
+              showCommentPanel
+                ? "text-primary bg-primary/10"
+                : "text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary"
+            )}
             title="Comments"
           >
             <MessageSquare className="h-4 w-4" />
@@ -666,6 +697,18 @@ export default function ChatPage() {
           )}
         </div>
       </Modal>
+
+      {/* Comment Panel */}
+      <CommentPanel
+        isOpen={showCommentPanel}
+        onClose={() => setShowCommentPanel(false)}
+        threads={commentThreads}
+        currentUserId={user?.id}
+        onAddComment={handleAddComment}
+        onUpdateComment={handleUpdateComment}
+        onDeleteComment={handleDeleteComment}
+        onScrollToMessage={handleScrollToMessage}
+      />
     </div>
   );
 }

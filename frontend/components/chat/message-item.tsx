@@ -381,11 +381,12 @@ export function MessageItem({
 
   return (
     <motion.div
+      id={`message-${message.id}`}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
       className={cn(
-        'py-4 sm:py-6 group',
+        'py-4 sm:py-6 group transition-all',
         isUser ? 'bg-transparent' : 'bg-background-secondary/30'
       )}
     >
