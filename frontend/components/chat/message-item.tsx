@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Pencil, X, Save } from 'lucide-react';
+import { Copy, Check, RefreshCw, ThumbsUp, ThumbsDown, Pencil, X, Save, MessageSquare, Send, Trash2, MoreHorizontal } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { ChartRenderer } from '@/components/charts/chart-renderer';
@@ -21,6 +21,7 @@ interface MessageItemProps {
   onRetry?: () => void;
   onEdit?: (messageId: string, newContent: string) => Promise<void>;
   onAddComment?: (messageId: string, content: string) => Promise<void>;
+  onUpdateComment?: (commentId: string, content: string) => Promise<void>;
   onDeleteComment?: (commentId: string) => Promise<void>;
   onChartDataChange?: (messageId: string, newChartData: any) => Promise<void>;
   comments?: any[];
@@ -33,7 +34,12 @@ export function MessageItem({
   userName = 'You',
   onRetry,
   onEdit,
+  onAddComment,
+  onUpdateComment,
+  onDeleteComment,
   onChartDataChange,
+  comments = [],
+  currentUserId,
   isStreaming = false,
   isLatest = false,
 }: MessageItemProps) {
@@ -46,9 +52,15 @@ export function MessageItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [isAddingComment, setIsAddingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentContent, setEditingCommentContent] = useState('');
   const animationRef = useRef<NodeJS.Timeout | null>(null);
   const hasAnimatedRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const commentInputRef = useRef<HTMLInputElement>(null);
 
   const isUser = message.role === 'user';
   const chartData = localChartData || message.metadata?.chart;
@@ -172,6 +184,47 @@ export function MessageItem({
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [editedContent, isEditing]);
+
+  // Comment handlers
+  const handleAddComment = async () => {
+    if (!onAddComment || !newComment.trim()) return;
+    setIsAddingComment(true);
+    try {
+      await onAddComment(message.id, newComment.trim());
+      setNewComment('');
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+    } finally {
+      setIsAddingComment(false);
+    }
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!onUpdateComment || !editingCommentContent.trim()) return;
+    try {
+      await onUpdateComment(commentId, editingCommentContent.trim());
+      setEditingCommentId(null);
+      setEditingCommentContent('');
+    } catch (error) {
+      console.error('Failed to update comment:', error);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!onDeleteComment) return;
+    try {
+      await onDeleteComment(commentId);
+    } catch (error) {
+      console.error('Failed to delete comment:', error);
+    }
+  };
+
+  const handleCommentKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleAddComment();
+    }
+  };
 
   const renderContent = (content: string) => {
     const lines = content.split('\n');
@@ -610,6 +663,176 @@ export function MessageItem({
                       <RefreshCw className="h-4 w-4" />
                     </motion.button>
                   )}
+                  {/* Comment button */}
+                  {onAddComment && (
+                    <motion.button
+                      onClick={() => {
+                        setShowComments(!showComments);
+                        if (!showComments) {
+                          setTimeout(() => commentInputRef.current?.focus(), 100);
+                        }
+                      }}
+                      whileTap={{ scale: 0.9 }}
+                      className={cn(
+                        "p-2.5 sm:p-2 rounded-lg transition-colors relative",
+                        showComments
+                          ? "text-primary bg-primary/10"
+                          : "text-foreground-tertiary active:bg-background-tertiary"
+                      )}
+                      title="Comments"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      {comments.length > 0 && (
+                        <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] text-white flex items-center justify-center font-medium">
+                          {comments.length}
+                        </span>
+                      )}
+                    </motion.button>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Comments Section */}
+            <AnimatePresence>
+              {showComments && onAddComment && (
+                <motion.div
+                  className="pl-0 sm:pl-8 mt-4"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="border border-border rounded-xl bg-background-secondary/50 overflow-hidden">
+                    {/* Comments list */}
+                    {comments.length > 0 && (
+                      <div className="divide-y divide-border/50 max-h-[300px] overflow-y-auto">
+                        {comments.map((comment) => (
+                          <div key={comment.id} className="p-3 group/comment">
+                            <div className="flex items-start gap-3">
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/60 to-accent-purple/60 flex items-center justify-center flex-shrink-0">
+                                <span className="text-xs font-medium text-white">
+                                  {comment.author?.name?.charAt(0)?.toUpperCase() || '?'}
+                                </span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-foreground">
+                                    {comment.author?.name || 'Unknown'}
+                                  </span>
+                                  <span className="text-xs text-foreground-tertiary">
+                                    {new Date(comment.createdAt).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                {editingCommentId === comment.id ? (
+                                  <div className="mt-2 flex gap-2">
+                                    <input
+                                      type="text"
+                                      value={editingCommentContent}
+                                      onChange={(e) => setEditingCommentContent(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleUpdateComment(comment.id);
+                                        if (e.key === 'Escape') {
+                                          setEditingCommentId(null);
+                                          setEditingCommentContent('');
+                                        }
+                                      }}
+                                      className="flex-1 px-2 py-1 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-primary/50"
+                                      autoFocus
+                                    />
+                                    <button
+                                      onClick={() => handleUpdateComment(comment.id)}
+                                      className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                    >
+                                      <Check className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setEditingCommentId(null);
+                                        setEditingCommentContent('');
+                                      }}
+                                      className="p-1.5 text-foreground-tertiary hover:bg-background-tertiary rounded-lg transition-colors"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <p className="mt-1 text-sm text-foreground-secondary">
+                                    {comment.content}
+                                  </p>
+                                )}
+                              </div>
+                              {/* Comment actions - only for comment author */}
+                              {currentUserId === comment.author?.id && editingCommentId !== comment.id && (
+                                <div className="flex items-center gap-1 opacity-0 group-hover/comment:opacity-100 transition-opacity">
+                                  {onUpdateComment && (
+                                    <button
+                                      onClick={() => {
+                                        setEditingCommentId(comment.id);
+                                        setEditingCommentContent(comment.content);
+                                      }}
+                                      className="p-1.5 text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary rounded-lg transition-colors"
+                                      title="Edit comment"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                  {onDeleteComment && (
+                                    <button
+                                      onClick={() => handleDeleteComment(comment.id)}
+                                      className="p-1.5 text-foreground-tertiary hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                      title="Delete comment"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add comment input */}
+                    <div className={cn(
+                      "p-3 flex items-center gap-2",
+                      comments.length > 0 && "border-t border-border/50"
+                    )}>
+                      <input
+                        ref={commentInputRef}
+                        type="text"
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        onKeyDown={handleCommentKeyDown}
+                        placeholder="Add a comment..."
+                        className="flex-1 px-3 py-2 text-sm bg-background border border-border rounded-lg focus:outline-none focus:border-primary/50 placeholder:text-foreground-tertiary"
+                        style={{ fontSize: '16px' }}
+                        disabled={isAddingComment}
+                      />
+                      <motion.button
+                        onClick={handleAddComment}
+                        disabled={!newComment.trim() || isAddingComment}
+                        whileTap={{ scale: 0.9 }}
+                        className={cn(
+                          "p-2 rounded-lg transition-colors",
+                          newComment.trim()
+                            ? "bg-primary text-white hover:bg-primary/90"
+                            : "bg-background-tertiary text-foreground-tertiary"
+                        )}
+                      >
+                        {isAddingComment ? (
+                          <motion.div
+                            className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                          />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                      </motion.button>
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

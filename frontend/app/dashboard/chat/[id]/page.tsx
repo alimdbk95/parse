@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Paperclip, Plus, Pencil, Check, X, Download, Eye, FolderPlus, Folder, FileText, Image, ChevronDown } from 'lucide-react';
+import { Paperclip, Plus, Pencil, Check, X, Download, Eye, FolderPlus, Folder, FileText, Image, ChevronDown, MessageSquare } from 'lucide-react';
 import { MessageList } from '@/components/chat/message-list';
 import { ChatInput } from '@/components/chat/chat-input';
 import { Button } from '@/components/ui/button';
@@ -79,6 +79,22 @@ export default function ChatPage() {
         // Fetch available documents for adding
         const { documents: allDocs } = await api.getDocuments();
         setAvailableDocs(allDocs);
+
+        // Fetch comments for all messages
+        const commentsMap: Record<string, Comment[]> = {};
+        for (const msg of parsedMessages) {
+          if (msg.role === 'assistant') {
+            try {
+              const { comments } = await api.getMessageComments(analysisId, msg.id);
+              if (comments.length > 0) {
+                commentsMap[msg.id] = comments;
+              }
+            } catch (e) {
+              // Silently fail for individual message comments
+            }
+          }
+        }
+        setMessageComments(commentsMap);
       } catch (error) {
         console.error('Failed to fetch analysis:', error);
         router.push('/dashboard');
@@ -228,18 +244,30 @@ export default function ChatPage() {
     }
   };
 
-  const handleDeleteComment = async (commentId: string) => {
+  const handleDeleteComment = async (messageId: string, commentId: string) => {
     try {
-      await api.deleteComment(commentId);
-      setMessageComments((prev) => {
-        const updated = { ...prev };
-        for (const messageId in updated) {
-          updated[messageId] = updated[messageId].filter((c) => c.id !== commentId);
-        }
-        return updated;
-      });
+      await api.deleteMessageComment(analysisId, messageId, commentId);
+      setMessageComments((prev) => ({
+        ...prev,
+        [messageId]: (prev[messageId] || []).filter((c) => c.id !== commentId),
+      }));
     } catch (error) {
       console.error('Failed to delete comment:', error);
+    }
+  };
+
+  const handleUpdateComment = async (messageId: string, commentId: string, content: string) => {
+    try {
+      const { comment } = await api.updateMessageComment(analysisId, messageId, commentId, content);
+      setMessageComments((prev) => ({
+        ...prev,
+        [messageId]: (prev[messageId] || []).map((c) =>
+          c.id === commentId ? { ...c, content: comment.content } : c
+        ),
+      }));
+    } catch (error) {
+      console.error('Failed to update comment:', error);
+      throw error;
     }
   };
 
@@ -401,28 +429,32 @@ export default function ChatPage() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {!canEdit && (
             <span className="hidden sm:flex items-center gap-1 rounded-full bg-background-secondary px-2 py-0.5 text-xs text-foreground-tertiary mr-2">
               <Eye className="h-3 w-3" />
               View only
             </span>
           )}
+          {/* Save to Repository */}
           <button
             onClick={handleOpenSaveToRepo}
-            className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all"
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all"
             title="Save to Repository"
           >
             <FolderPlus className="h-4 w-4" />
+            <span className="hidden sm:inline text-xs">Save</span>
           </button>
+          {/* Download Menu */}
           <Menu
             trigger={
               <button
                 disabled={exporting}
-                className="hidden sm:flex items-center gap-1 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors disabled:opacity-50"
                 title="Download"
               >
                 <Download className="h-4 w-4" />
+                <span className="hidden sm:inline text-xs">Download</span>
                 <ChevronDown className="h-3 w-3" />
               </button>
             }
@@ -446,21 +478,27 @@ export default function ChatPage() {
               Download Charts as JPEG
             </MenuItem>
           </Menu>
-          {/* Mobile download button */}
+          {/* Comments indicator */}
           <button
-            onClick={handleExportPdf}
-            disabled={exporting}
-            className="sm:hidden p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all disabled:opacity-50"
-            title="Download PDF"
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all relative"
+            title="Comments"
           >
-            <Download className="h-4 w-4" />
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden sm:inline text-xs">Comments</span>
+            {Object.values(messageComments).flat().length > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] text-white flex items-center justify-center font-medium">
+                {Object.values(messageComments).flat().length}
+              </span>
+            )}
           </button>
+          {/* Attachments */}
           <button
             onClick={() => setShowDocuments(true)}
-            className="p-2 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all relative"
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all relative"
             title="Documents"
           >
             <Paperclip className="h-4 w-4" />
+            <span className="hidden sm:inline text-xs">Attach</span>
             {documents.length > 0 && (
               <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] text-white flex items-center justify-center font-medium">
                 {documents.length}
@@ -479,6 +517,7 @@ export default function ChatPage() {
           messageComments={messageComments}
           onEditMessage={canEdit ? handleEditMessage : undefined}
           onAddComment={handleAddComment}
+          onUpdateComment={handleUpdateComment}
           onDeleteComment={handleDeleteComment}
           onChartDataChange={canEdit ? handleChartDataChange : undefined}
           readOnly={!canEdit}

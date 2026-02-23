@@ -25,7 +25,8 @@ interface MessageListProps {
   onRetry?: (messageId: string) => void;
   onEditMessage?: (messageId: string, newContent: string) => Promise<void>;
   onAddComment?: (messageId: string, content: string) => Promise<void>;
-  onDeleteComment?: (commentId: string) => Promise<void>;
+  onUpdateComment?: (messageId: string, commentId: string, content: string) => Promise<void>;
+  onDeleteComment?: (messageId: string, commentId: string) => Promise<void>;
   onChartDataChange?: (messageId: string, newChartData: any) => Promise<void>;
   readOnly?: boolean;
 }
@@ -34,8 +35,13 @@ export function MessageList({
   messages,
   loading = false,
   userName = 'You',
+  currentUserId,
+  messageComments = {},
   onRetry,
   onEditMessage,
+  onAddComment,
+  onUpdateComment,
+  onDeleteComment,
   onChartDataChange,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -188,7 +194,9 @@ export function MessageList({
                 <MessageItem
                   message={message}
                   userName={userName}
+                  currentUserId={currentUserId}
                   isLatest={index === messages.length - 1}
+                  comments={messageComments[message.id] || []}
                   onRetry={
                     message.role === 'assistant' && onRetry
                       ? () => onRetry(message.id)
@@ -197,6 +205,21 @@ export function MessageList({
                   onEdit={
                     message.role === 'assistant' && onEditMessage
                       ? (messageId, newContent) => onEditMessage(messageId, newContent)
+                      : undefined
+                  }
+                  onAddComment={
+                    message.role === 'assistant' && onAddComment
+                      ? (messageId, content) => onAddComment(messageId, content)
+                      : undefined
+                  }
+                  onUpdateComment={
+                    message.role === 'assistant' && onUpdateComment
+                      ? (commentId, content) => onUpdateComment(message.id, commentId, content)
+                      : undefined
+                  }
+                  onDeleteComment={
+                    message.role === 'assistant' && onDeleteComment
+                      ? (commentId) => onDeleteComment(message.id, commentId)
                       : undefined
                   }
                   onChartDataChange={onChartDataChange}

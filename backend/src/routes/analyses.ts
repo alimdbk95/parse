@@ -646,6 +646,82 @@ router.get('/:analysisId/messages/:messageId/comments', authenticate, async (req
   }
 });
 
+// Update comment
+router.patch('/:analysisId/messages/:messageId/comments/:commentId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { content } = req.body;
+    const { analysisId, messageId, commentId } = req.params;
+
+    // Find the comment and verify ownership
+    const comment = await prisma.comment.findFirst({
+      where: {
+        id: commentId,
+        messageId,
+        authorId: req.user!.id,
+      },
+    });
+
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found or not authorized' });
+    }
+
+    const updatedComment = await prisma.comment.update({
+      where: { id: commentId },
+      data: {
+        content,
+        updatedAt: new Date(),
+      },
+      include: {
+        author: {
+          select: { id: true, name: true, avatar: true },
+        },
+      },
+    });
+
+    // Emit socket event
+    const io = req.app.get('io');
+    io.to(`analysis:${analysisId}`).emit('comment-updated', { comment: updatedComment, messageId });
+
+    res.json({ comment: updatedComment });
+  } catch (error) {
+    console.error('Update comment error:', error);
+    res.status(500).json({ error: 'Failed to update comment' });
+  }
+});
+
+// Delete comment
+router.delete('/:analysisId/messages/:messageId/comments/:commentId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { analysisId, messageId, commentId } = req.params;
+
+    // Find the comment and verify ownership
+    const comment = await prisma.comment.findFirst({
+      where: {
+        id: commentId,
+        messageId,
+        authorId: req.user!.id,
+      },
+    });
+
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found or not authorized' });
+    }
+
+    await prisma.comment.delete({
+      where: { id: commentId },
+    });
+
+    // Emit socket event
+    const io = req.app.get('io');
+    io.to(`analysis:${analysisId}`).emit('comment-deleted', { commentId, messageId });
+
+    res.json({ message: 'Comment deleted successfully' });
+  } catch (error) {
+    console.error('Delete comment error:', error);
+    res.status(500).json({ error: 'Failed to delete comment' });
+  }
+});
+
 // Export analysis as PDF
 router.get('/:id/export/pdf', authenticate, async (req: AuthRequest, res) => {
   try {

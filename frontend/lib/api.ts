@@ -476,6 +476,19 @@ class ApiClient {
     return this.request<{ comments: any[] }>(`/analyses/${analysisId}/messages/${messageId}/comments`);
   }
 
+  async updateMessageComment(analysisId: string, messageId: string, commentId: string, content: string) {
+    return this.request<{ comment: any }>(`/analyses/${analysisId}/messages/${messageId}/comments/${commentId}`, {
+      method: 'PATCH',
+      body: { content },
+    });
+  }
+
+  async deleteMessageComment(analysisId: string, messageId: string, commentId: string) {
+    return this.request<{ message: string }>(`/analyses/${analysisId}/messages/${messageId}/comments/${commentId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Repositories
   async getRepositories() {
     return this.request<{ repositories: any[] }>('/repositories');

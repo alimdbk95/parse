@@ -91,6 +91,22 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
         </div>
       )}
 
+      {/* Workspace Name */}
+      <div className="px-3 py-2">
+        {sidebarOpen ? (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background-tertiary/50">
+            <Users className="h-4 w-4 text-foreground-secondary flex-shrink-0" />
+            <span className="text-sm font-medium truncate">{currentWorkspace?.name || 'Workspace'}</span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center">
+            <div className="h-9 w-9 rounded-lg bg-background-tertiary/50 flex items-center justify-center">
+              <Users className="h-4 w-4 text-foreground-secondary" />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* New Analysis Button */}
       <div className="px-3 py-2">
         <Button
@@ -129,7 +145,7 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
           </AnimatePresence>
         </Link>
 
-        {/* Analyses Section */}
+        {/* Conversations Section */}
         <div className="mt-4">
           <button
             onClick={() => setShowChats(!showChats)}
@@ -143,7 +159,7 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
             <MessageSquare className="h-5 w-5 flex-shrink-0" />
             {sidebarOpen && (
               <>
-                <span className="flex-1 text-left">Analyses</span>
+                <span className="flex-1 text-left">Conversations</span>
                 <ChevronDown
                   className={cn(
                     'h-4 w-4 transition-transform',
@@ -266,19 +282,6 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
           </Link>
         </div>
       </nav>
-
-      {/* Workspace Selector */}
-      {sidebarOpen && currentWorkspace && (
-        <div className="border-t border-border px-3 py-2">
-          <Link
-            href="/dashboard/settings"
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-secondary transition-colors hover:bg-background-tertiary hover:text-foreground"
-          >
-            <Users className="h-4 w-4" />
-            <span className="truncate">{currentWorkspace.name}</span>
-          </Link>
-        </div>
-      )}
 
       {/* User Menu */}
       <div className="border-t border-border p-3">
