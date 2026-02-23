@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare,
@@ -30,10 +30,13 @@ interface SidebarProps {
 
 export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
   const pathname = usePathname();
-  const { user, sidebarOpen, setSidebarOpen, logout, currentWorkspace, isMobile } = useStore();
+  const router = useRouter();
+  const { user, sidebarOpen, setSidebarOpen, logout, currentWorkspace, workspaces, setCurrentWorkspace, isMobile } = useStore();
   const [showChats, setShowChats] = useState(true);
   const [showRepositories, setShowRepositories] = useState(true);
+  const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   const [repositories, setRepositories] = useState<any[]>([]);
+  const workspaceDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchRepositories = async () => {
@@ -47,6 +50,23 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
     fetchRepositories();
   }, []);
 
+  // Close workspace dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (workspaceDropdownRef.current && !workspaceDropdownRef.current.contains(event.target as Node)) {
+        setShowWorkspaceDropdown(false);
+      }
+    };
+
+    if (showWorkspaceDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showWorkspaceDropdown]);
+
   const isDashboardActive = pathname === '/dashboard';
   const isSettingsActive = pathname.startsWith('/dashboard/settings');
 
@@ -55,6 +75,21 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
       setSidebarOpen(false);
     }
   };
+
+  const handleWorkspaceSwitch = (workspace: any) => {
+    setCurrentWorkspace(workspace);
+    setShowWorkspaceDropdown(false);
+    // Navigate to dashboard when switching workspaces
+    router.push('/dashboard');
+  };
+
+  const handleCreateWorkspace = () => {
+    setShowWorkspaceDropdown(false);
+    router.push('/dashboard/settings?tab=workspace&action=create');
+  };
+
+  // Get other workspaces (excluding current)
+  const otherWorkspaces = workspaces.filter(w => w.id !== currentWorkspace?.id);
 
   return (
     <motion.aside
@@ -91,20 +126,77 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
         </div>
       )}
 
-      {/* Workspace Name */}
-      <div className="px-3 py-2">
+      {/* Workspace Name with Dropdown */}
+      <div ref={workspaceDropdownRef} className="px-3 py-2 relative">
         {sidebarOpen ? (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background-tertiary/50">
+          <button
+            onClick={() => setShowWorkspaceDropdown(!showWorkspaceDropdown)}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-background-tertiary/50 hover:bg-background-tertiary transition-colors"
+          >
             <Users className="h-4 w-4 text-foreground-secondary flex-shrink-0" />
-            <span className="text-sm font-medium truncate">{currentWorkspace?.name || 'Workspace'}</span>
-          </div>
+            <span className="text-sm font-medium truncate flex-1 text-left">{currentWorkspace?.name || 'Workspace'}</span>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 text-foreground-tertiary transition-transform',
+                showWorkspaceDropdown && 'rotate-180'
+              )}
+            />
+          </button>
         ) : (
-          <div className="flex items-center justify-center">
-            <div className="h-9 w-9 rounded-lg bg-background-tertiary/50 flex items-center justify-center">
+          <button
+            onClick={() => setShowWorkspaceDropdown(!showWorkspaceDropdown)}
+            className="flex items-center justify-center w-full"
+          >
+            <div className="h-9 w-9 rounded-lg bg-background-tertiary/50 hover:bg-background-tertiary transition-colors flex items-center justify-center">
               <Users className="h-4 w-4 text-foreground-secondary" />
             </div>
-          </div>
+          </button>
         )}
+
+        {/* Workspace Dropdown */}
+        <AnimatePresence>
+          {showWorkspaceDropdown && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className={cn(
+                "absolute z-50 mt-1 py-1 rounded-lg border border-border bg-background-secondary shadow-lg",
+                sidebarOpen ? "left-3 right-3" : "left-0 w-48"
+              )}
+            >
+              {/* Other workspaces */}
+              {otherWorkspaces.length > 0 && (
+                <>
+                  <div className="px-3 py-1.5">
+                    <span className="text-xs text-foreground-tertiary uppercase tracking-wider">Switch Workspace</span>
+                  </div>
+                  {otherWorkspaces.map((workspace) => (
+                    <button
+                      key={workspace.id}
+                      onClick={() => handleWorkspaceSwitch(workspace)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground-secondary hover:bg-background-tertiary hover:text-foreground transition-colors"
+                    >
+                      <Users className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate flex-1 text-left">{workspace.name}</span>
+                    </button>
+                  ))}
+                  <div className="my-1 border-t border-border" />
+                </>
+              )}
+
+              {/* Create new workspace CTA */}
+              <button
+                onClick={handleCreateWorkspace}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Plus className="h-4 w-4 flex-shrink-0" />
+                <span className="truncate flex-1 text-left">Create New Workspace</span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* New Analysis Button */}
