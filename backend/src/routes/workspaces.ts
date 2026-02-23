@@ -227,6 +227,24 @@ router.post('/:id/invite', authenticate, async (req: AuthRequest, res) => {
       return res.status(201).json({ member: newMembership });
     }
 
+    // Check if there's already a pending invitation for this email
+    const existingInvitation = await prisma.invitation.findFirst({
+      where: {
+        email,
+        workspaceId: req.params.id,
+      },
+    });
+
+    if (existingInvitation) {
+      return res.status(400).json({ error: 'An invitation has already been sent to this email' });
+    }
+
+    // Get workspace info for the response
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, name: true },
+    });
+
     // Create invitation for non-existing user
     const invitation = await prisma.invitation.create({
       data: {
@@ -234,9 +252,14 @@ router.post('/:id/invite', authenticate, async (req: AuthRequest, res) => {
         role: role || 'viewer',
         token: uuidv4(),
         workspaceId: req.params.id,
+        invitedById: req.user!.id,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       },
     });
+
+    // Generate the invite link
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const inviteLink = `${frontendUrl}/invite/${invitation.token}`;
 
     // In production, send email here
     // For now, return the invitation token
@@ -247,12 +270,161 @@ router.post('/:id/invite', authenticate, async (req: AuthRequest, res) => {
         role: invitation.role,
         token: invitation.token,
         expiresAt: invitation.expiresAt,
+        workspace,
+        inviteLink,
       },
-      message: 'Invitation created. In production, an email would be sent.',
+      message: 'Invitation created. Share the invite link with the user.',
     });
   } catch (error) {
     console.error('Invite user error:', error);
     res.status(500).json({ error: 'Failed to invite user' });
+  }
+});
+
+// Get pending invitations for a workspace
+router.get('/:id/invitations', authenticate, async (req: AuthRequest, res) => {
+  try {
+    // Verify admin access
+    const membership = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: req.params.id,
+        userId: req.user!.id,
+        role: 'admin',
+      },
+    });
+
+    if (!membership) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const invitations = await prisma.invitation.findMany({
+      where: { workspaceId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ invitations });
+  } catch (error) {
+    console.error('Get invitations error:', error);
+    res.status(500).json({ error: 'Failed to get invitations' });
+  }
+});
+
+// Resend invitation
+router.post('/:id/invitations/:invitationId/resend', authenticate, async (req: AuthRequest, res) => {
+  try {
+    // Verify admin access
+    const membership = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: req.params.id,
+        userId: req.user!.id,
+        role: 'admin',
+      },
+    });
+
+    if (!membership) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const invitation = await prisma.invitation.findFirst({
+      where: {
+        id: req.params.invitationId,
+        workspaceId: req.params.id,
+      },
+    });
+
+    if (!invitation) {
+      return res.status(404).json({ error: 'Invitation not found' });
+    }
+
+    // Update invitation with new token and expiration
+    const updatedInvitation = await prisma.invitation.update({
+      where: { id: invitation.id },
+      data: {
+        token: uuidv4(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      },
+    });
+
+    // In production, send email here
+    res.json({
+      invitation: updatedInvitation,
+      message: 'Invitation resent. In production, an email would be sent.',
+    });
+  } catch (error) {
+    console.error('Resend invitation error:', error);
+    res.status(500).json({ error: 'Failed to resend invitation' });
+  }
+});
+
+// Revoke invitation
+router.delete('/:id/invitations/:invitationId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    // Verify admin access
+    const membership = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: req.params.id,
+        userId: req.user!.id,
+        role: 'admin',
+      },
+    });
+
+    if (!membership) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const invitation = await prisma.invitation.findFirst({
+      where: {
+        id: req.params.invitationId,
+        workspaceId: req.params.id,
+      },
+    });
+
+    if (!invitation) {
+      return res.status(404).json({ error: 'Invitation not found' });
+    }
+
+    await prisma.invitation.delete({
+      where: { id: invitation.id },
+    });
+
+    res.json({ message: 'Invitation revoked successfully' });
+  } catch (error) {
+    console.error('Revoke invitation error:', error);
+    res.status(500).json({ error: 'Failed to revoke invitation' });
+  }
+});
+
+// Get invitation details by token (public, for accept page)
+router.get('/invitations/:token', async (req, res) => {
+  try {
+    const invitation = await prisma.invitation.findFirst({
+      where: {
+        token: req.params.token,
+        expiresAt: { gt: new Date() },
+      },
+      include: {
+        workspace: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    if (!invitation) {
+      return res.status(404).json({ error: 'Invalid or expired invitation' });
+    }
+
+    res.json({
+      invitation: {
+        id: invitation.id,
+        email: invitation.email,
+        role: invitation.role,
+        expiresAt: invitation.expiresAt,
+        workspace: invitation.workspace,
+      },
+    });
+  } catch (error) {
+    console.error('Get invitation error:', error);
+    res.status(500).json({ error: 'Failed to get invitation details' });
   }
 });
 

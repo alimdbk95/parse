@@ -56,6 +56,7 @@ model Workspace {
   documents   Document[]
   analyses    Analysis[]
   charts      Chart[]
+  invitations Invitation[]
 }
 
 model WorkspaceMember {
@@ -180,7 +181,14 @@ model Invitation {
   expiresAt   DateTime
   createdAt   DateTime  @default(now())
 
+  // Track invitation sender
+  invitedById String?
+
   workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([email])
 }
 
 model CompareSession {

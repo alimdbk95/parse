@@ -294,6 +294,26 @@ class ApiClient {
     });
   }
 
+  async getInvitationByToken(token: string) {
+    return this.request<{ invitation: any }>(`/workspaces/invitations/${token}`);
+  }
+
+  async getWorkspaceInvitations(workspaceId: string) {
+    return this.request<{ invitations: any[] }>(`/workspaces/${workspaceId}/invitations`);
+  }
+
+  async resendInvitation(workspaceId: string, invitationId: string) {
+    return this.request<{ invitation: any; message: string }>(`/workspaces/${workspaceId}/invitations/${invitationId}/resend`, {
+      method: 'POST',
+    });
+  }
+
+  async revokeInvitation(workspaceId: string, invitationId: string) {
+    return this.request<{ message: string }>(`/workspaces/${workspaceId}/invitations/${invitationId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async updateMemberRole(workspaceId: string, userId: string, role: string) {
     return this.request<{ message: string }>(`/workspaces/${workspaceId}/members/${userId}`, {
       method: 'PATCH',

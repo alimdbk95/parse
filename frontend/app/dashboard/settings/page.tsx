@@ -15,6 +15,10 @@ import {
   Image,
   Type,
   BarChart3,
+  Copy,
+  RefreshCw,
+  Clock,
+  Link2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,6 +75,11 @@ export default function SettingsPage() {
   const [inviting, setInviting] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
   const [removeMember, setRemoveMember] = useState<any>(null);
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [revokeInvitation, setRevokeInvitation] = useState<any>(null);
+  const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Profile state
@@ -90,6 +99,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (currentWorkspace) {
       fetchMembers();
+      fetchInvitations();
     }
     // Load saved branding settings
     loadBrandingSettings();
@@ -121,6 +131,16 @@ export default function SettingsPage() {
       setMembers(members);
     } catch (error) {
       console.error('Failed to fetch members:', error);
+    }
+  };
+
+  const fetchInvitations = async () => {
+    if (!currentWorkspace) return;
+    try {
+      const { invitations } = await api.getWorkspaceInvitations(currentWorkspace.id);
+      setInvitations(invitations);
+    } catch (error) {
+      console.error('Failed to fetch invitations:', error);
     }
   };
 
@@ -193,15 +213,66 @@ export default function SettingsPage() {
     if (!inviteEmail || !currentWorkspace) return;
     setInviting(true);
     try {
-      await api.inviteToWorkspace(currentWorkspace.id, inviteEmail, inviteRole);
+      const result = await api.inviteToWorkspace(currentWorkspace.id, inviteEmail, inviteRole);
+      // If an invitation was created (not direct member add), show the link
+      if (result.invitation?.inviteLink) {
+        setLastInviteLink(result.invitation.inviteLink);
+      }
       setShowInvite(false);
       setInviteEmail('');
       fetchMembers();
+      fetchInvitations();
     } catch (error) {
       console.error('Failed to invite:', error);
     } finally {
       setInviting(false);
     }
+  };
+
+  const handleCopyLink = async (token: string) => {
+    const link = `${window.location.origin}/invite/${token}`;
+    await navigator.clipboard.writeText(link);
+    setCopiedLink(token);
+    setTimeout(() => setCopiedLink(null), 2000);
+  };
+
+  const handleResendInvitation = async (invitationId: string) => {
+    if (!currentWorkspace) return;
+    setResendingId(invitationId);
+    try {
+      await api.resendInvitation(currentWorkspace.id, invitationId);
+      fetchInvitations();
+    } catch (error) {
+      console.error('Failed to resend invitation:', error);
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  const handleRevokeInvitation = async () => {
+    if (!revokeInvitation || !currentWorkspace) return;
+    try {
+      await api.revokeInvitation(currentWorkspace.id, revokeInvitation.id);
+      setInvitations((prev) => prev.filter((i) => i.id !== revokeInvitation.id));
+      setRevokeInvitation(null);
+    } catch (error) {
+      console.error('Failed to revoke invitation:', error);
+    }
+  };
+
+  const isInvitationExpired = (expiresAt: string) => {
+    return new Date(expiresAt) < new Date();
+  };
+
+  const formatExpiryDate = (expiresAt: string) => {
+    const date = new Date(expiresAt);
+    const now = new Date();
+    const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return 'Expired';
+    if (diffDays === 0) return 'Expires today';
+    if (diffDays === 1) return 'Expires tomorrow';
+    return `Expires in ${diffDays} days`;
   };
 
   const handleRemoveMember = async () => {
@@ -589,66 +660,175 @@ export default function SettingsPage() {
 
           {/* Team Tab */}
           <TabPanel id="team" activeTab={activeTab}>
-            <Card className="mt-6">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Team Members</CardTitle>
-                    <CardDescription>
-                      Manage who has access to {currentWorkspace?.name || 'this workspace'}
-                    </CardDescription>
+            <div className="mt-6 space-y-6">
+              {/* Team Members Card */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Team Members</CardTitle>
+                      <CardDescription>
+                        Manage who has access to {currentWorkspace?.name || 'this workspace'}
+                      </CardDescription>
+                    </div>
+                    <Button onClick={() => setShowInvite(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Invite
+                    </Button>
                   </div>
-                  <Button onClick={() => setShowInvite(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Invite
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="divide-y divide-border">
-                  {members.map((member) => (
-                    <div
-                      key={member.user.id}
-                      className="flex items-center justify-between py-4"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar name={member.user.name} size="sm" />
-                        <div>
-                          <p className="font-medium">{member.user.name}</p>
-                          <p className="text-sm text-foreground-tertiary">
-                            {member.user.email}
-                          </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="divide-y divide-border">
+                    {members.map((member) => (
+                      <div
+                        key={member.user.id}
+                        className="flex items-center justify-between py-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar name={member.user.name} size="sm" />
+                          <div>
+                            <p className="font-medium">{member.user.name}</p>
+                            <p className="text-sm text-foreground-tertiary">
+                              {member.user.email}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={cn(
+                              'rounded-full px-2 py-0.5 text-xs font-medium',
+                              member.role === 'admin'
+                                ? 'bg-primary/20 text-primary'
+                                : member.role === 'editor'
+                                ? 'bg-accent-teal/20 text-accent-teal'
+                                : 'bg-background-secondary text-foreground-secondary'
+                            )}
+                          >
+                            {member.role}
+                          </span>
+                          {member.user.id !== user?.id && member.role !== 'admin' && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => setRemoveMember(member)}
+                              className="text-foreground-tertiary hover:text-red-400"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={cn(
-                            'rounded-full px-2 py-0.5 text-xs font-medium',
-                            member.role === 'admin'
-                              ? 'bg-primary/20 text-primary'
-                              : member.role === 'editor'
-                              ? 'bg-accent-teal/20 text-accent-teal'
-                              : 'bg-background-secondary text-foreground-secondary'
-                          )}
-                        >
-                          {member.role}
-                        </span>
-                        {member.user.id !== user?.id && member.role !== 'admin' && (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => setRemoveMember(member)}
-                            className="text-foreground-tertiary hover:text-red-400"
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Pending Invitations Card */}
+              {invitations.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Mail className="h-5 w-5" />
+                      Pending Invitations
+                    </CardTitle>
+                    <CardDescription>
+                      Invitations that haven't been accepted yet
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="divide-y divide-border">
+                      {invitations.map((invitation) => {
+                        const expired = isInvitationExpired(invitation.expiresAt);
+                        return (
+                          <div
+                            key={invitation.id}
+                            className={cn(
+                              "flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-3",
+                              expired && "opacity-60"
+                            )}
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-background-secondary flex items-center justify-center">
+                                <Mail className="h-4 w-4 text-foreground-tertiary" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{invitation.email}</p>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <span
+                                    className={cn(
+                                      'rounded-full px-2 py-0.5 text-xs font-medium',
+                                      invitation.role === 'admin'
+                                        ? 'bg-primary/20 text-primary'
+                                        : invitation.role === 'editor'
+                                        ? 'bg-accent-teal/20 text-accent-teal'
+                                        : 'bg-background-secondary text-foreground-secondary'
+                                    )}
+                                  >
+                                    {invitation.role}
+                                  </span>
+                                  <span className={cn(
+                                    "flex items-center gap-1 text-xs",
+                                    expired ? "text-red-400" : "text-foreground-tertiary"
+                                  )}>
+                                    <Clock className="h-3 w-3" />
+                                    {formatExpiryDate(invitation.expiresAt)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 ml-12 sm:ml-0">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCopyLink(invitation.token)}
+                                className="text-foreground-tertiary hover:text-foreground"
+                              >
+                                {copiedLink === invitation.token ? (
+                                  <>
+                                    <Check className="h-4 w-4 mr-1 text-green-500" />
+                                    <span className="text-green-500">Copied</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Link2 className="h-4 w-4 mr-1" />
+                                    Copy Link
+                                  </>
+                                )}
+                              </Button>
+                              {expired ? (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handleResendInvitation(invitation.id)}
+                                  disabled={resendingId === invitation.id}
+                                >
+                                  {resendingId === invitation.id ? (
+                                    <RefreshCw className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <RefreshCw className="h-4 w-4 mr-1" />
+                                      Resend
+                                    </>
+                                  )}
+                                </Button>
+                              ) : null}
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => setRevokeInvitation(invitation)}
+                                className="text-foreground-tertiary hover:text-red-400"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabPanel>
         </TabPanels>
       </div>
@@ -700,6 +880,67 @@ export default function SettingsPage() {
         confirmText="Remove"
         variant="danger"
       />
+
+      {/* Revoke Invitation Confirmation */}
+      <ConfirmModal
+        isOpen={!!revokeInvitation}
+        onClose={() => setRevokeInvitation(null)}
+        onConfirm={handleRevokeInvitation}
+        title="Revoke Invitation"
+        description={`Are you sure you want to revoke the invitation for ${revokeInvitation?.email}? They will no longer be able to join this workspace with this link.`}
+        confirmText="Revoke"
+        variant="danger"
+      />
+
+      {/* Invite Link Success Modal */}
+      <Modal
+        isOpen={!!lastInviteLink}
+        onClose={() => setLastInviteLink(null)}
+        title="Invitation Created"
+        description="Share this link with the invited person"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 p-3 bg-background-secondary rounded-lg border border-border">
+            <input
+              type="text"
+              value={lastInviteLink || ''}
+              readOnly
+              className="flex-1 bg-transparent text-sm text-foreground-secondary outline-none"
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={async () => {
+                if (lastInviteLink) {
+                  await navigator.clipboard.writeText(lastInviteLink);
+                  setCopiedLink('last');
+                  setTimeout(() => setCopiedLink(null), 2000);
+                }
+              }}
+            >
+              {copiedLink === 'last' ? (
+                <>
+                  <Check className="h-4 w-4 mr-1 text-green-500" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4 mr-1" />
+                  Copy
+                </>
+              )}
+            </Button>
+          </div>
+          <p className="text-sm text-foreground-tertiary">
+            The invitation will expire in 7 days. You can resend or revoke it from the Team settings.
+          </p>
+          <div className="flex justify-end">
+            <Button onClick={() => setLastInviteLink(null)}>
+              Done
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
