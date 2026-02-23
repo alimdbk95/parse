@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Menu, X, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '@/components/layout/sidebar';
+import { SearchModal } from '@/components/search/search-modal';
 import { useStore } from '@/lib/store';
 import { api } from '@/lib/api';
 import { BrandingProvider } from '@/components/providers/branding-provider';
@@ -27,6 +28,7 @@ export default function DashboardLayout({
   } = useStore();
   const [loading, setLoading] = useState(true);
   const [analyses, setLocalAnalyses] = useState<any[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
 
   // Touch handling for swipe gestures
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -56,6 +58,20 @@ export default function DashboardLayout({
       setSidebarOpen(false);
     }
   }, [touchStart, touchEnd, sidebarOpen, setSidebarOpen]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K to open search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -205,6 +221,7 @@ export default function DashboardLayout({
           <Sidebar
             analyses={analyses}
             onNewAnalysis={handleNewAnalysis}
+            onOpenSearch={() => setShowSearch(true)}
           />
         </motion.div>
 
@@ -217,6 +234,12 @@ export default function DashboardLayout({
         >
           {children}
         </main>
+
+        {/* Search Modal */}
+        <SearchModal
+          isOpen={showSearch}
+          onClose={() => setShowSearch(false)}
+        />
       </div>
     </BrandingProvider>
   );

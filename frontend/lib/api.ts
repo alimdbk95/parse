@@ -556,6 +556,21 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Search
+  async search(query: string) {
+    return this.request<{
+      results: Array<{
+        id: string;
+        type: 'analysis' | 'document' | 'repository';
+        title: string;
+        subtitle?: string;
+        icon: 'conversation' | 'document' | 'folder';
+        url: string;
+        updatedAt?: string;
+      }>;
+    }>(`/search?q=${encodeURIComponent(query)}`);
+  }
 }
 
 export const api = new ApiClient();

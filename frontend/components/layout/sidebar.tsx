@@ -14,6 +14,8 @@ import {
   LogOut,
   LayoutDashboard,
   Folder,
+  Search,
+  Command,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,9 +28,10 @@ import { api } from '@/lib/api';
 interface SidebarProps {
   analyses?: any[];
   onNewAnalysis?: () => void;
+  onOpenSearch?: () => void;
 }
 
-export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
+export function Sidebar({ analyses = [], onNewAnalysis, onOpenSearch }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, sidebarOpen, setSidebarOpen, logout, currentWorkspace, workspaces, setCurrentWorkspace, isMobile } = useStore();
@@ -197,6 +200,28 @@ export function Sidebar({ analyses = [], onNewAnalysis }: SidebarProps) {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* Search Button */}
+      <div className="px-3 py-1">
+        <button
+          onClick={onOpenSearch}
+          className={cn(
+            "w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-border/50 bg-background-tertiary/30 hover:bg-background-tertiary transition-colors text-foreground-tertiary hover:text-foreground",
+            !sidebarOpen && "px-0 justify-center"
+          )}
+        >
+          <Search className="h-4 w-4 flex-shrink-0" />
+          {sidebarOpen && (
+            <>
+              <span className="flex-1 text-left text-sm">Search...</span>
+              <div className="flex items-center gap-0.5 text-xs opacity-60">
+                <Command className="h-3 w-3" />
+                <span>K</span>
+              </div>
+            </>
+          )}
+        </button>
       </div>
 
       {/* New Analysis Button */}

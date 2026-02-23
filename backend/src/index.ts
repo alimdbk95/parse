@@ -15,6 +15,7 @@ import workspaceRoutes from './routes/workspaces.js';
 import settingsRoutes from './routes/settings.js';
 import compareRoutes from './routes/compare.js';
 import repositoryRoutes from './routes/repositories.js';
+import searchRoutes from './routes/search.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -62,6 +63,7 @@ app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/compare', compareRoutes);
 app.use('/api/repositories', repositoryRoutes);
+app.use('/api/search', searchRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
