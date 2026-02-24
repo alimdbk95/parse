@@ -777,6 +777,7 @@ router.delete('/:analysisId/messages/:messageId/comments/:commentId', authentica
 // Export analysis as PDF
 router.get('/:id/export/pdf', authenticate, async (req: AuthRequest, res) => {
   try {
+    // Fetch analysis with all related data
     const analysis = await prisma.analysis.findFirst({
       where: {
         id: req.params.id,
@@ -810,6 +811,14 @@ router.get('/:id/export/pdf', authenticate, async (req: AuthRequest, res) => {
             },
           },
         },
+        charts: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            data: true,
+          },
+        },
       },
     });
 
@@ -817,10 +826,27 @@ router.get('/:id/export/pdf', authenticate, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Analysis not found' });
     }
 
+    // Fetch user branding settings
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: {
+        brandPrimaryColor: true,
+        brandAccentColor: true,
+        brandTextColor: true,
+        brandFont: true,
+      },
+    });
+
+    // Branding colors (defaults if not set)
+    const primaryColor = user?.brandPrimaryColor || '#3b82f6';
+    const accentColor = user?.brandAccentColor || '#10b981';
+    const textColor = '#333333';
+
     // Create PDF document
     const doc = new PDFDocument({
       margin: 50,
       size: 'A4',
+      bufferPages: true,
     });
 
     // Set response headers
@@ -833,31 +859,52 @@ router.get('/:id/export/pdf', authenticate, async (req: AuthRequest, res) => {
     // Pipe to response
     doc.pipe(res);
 
-    // Title
+    // Header bar
+    doc
+      .rect(0, 0, 595, 60)
+      .fill(primaryColor);
+
+    // Logo text
     doc
       .fontSize(24)
       .font('Helvetica-Bold')
-      .text(analysis.title, { align: 'center' });
+      .fillColor('#ffffff')
+      .text('Parse', 50, 20);
 
-    doc.moveDown();
+    // Date in header
+    doc
+      .fontSize(10)
+      .font('Helvetica')
+      .fillColor('#ffffff')
+      .text(new Date().toLocaleDateString(), 450, 25, { width: 100, align: 'right' });
 
-    // Metadata
+    doc.moveDown(3);
+
+    // Title
+    doc
+      .fontSize(22)
+      .font('Helvetica-Bold')
+      .fillColor(textColor)
+      .text(analysis.title, 50, 80);
+
+    doc.moveDown(0.5);
+
+    // Metadata line
     doc
       .fontSize(10)
       .font('Helvetica')
       .fillColor('#666666')
-      .text(`Created by: ${analysis.createdBy.name}`, { align: 'center' })
-      .text(`Date: ${new Date(analysis.createdAt).toLocaleDateString()}`, { align: 'center' });
+      .text(`Created by ${analysis.createdBy.name} • ${new Date(analysis.createdAt).toLocaleDateString()}`, 50);
 
-    doc.moveDown();
+    doc.moveDown(1.5);
 
     // Documents section
     if (analysis.documents.length > 0) {
       doc
-        .fontSize(14)
+        .fontSize(12)
         .font('Helvetica-Bold')
-        .fillColor('#000000')
-        .text('Documents Analyzed:');
+        .fillColor(primaryColor)
+        .text('DOCUMENTS ANALYZED', 50);
 
       doc.moveDown(0.5);
 
@@ -865,82 +912,196 @@ router.get('/:id/export/pdf', authenticate, async (req: AuthRequest, res) => {
         doc
           .fontSize(10)
           .font('Helvetica')
-          .text(`• ${d.document.name} (${d.document.type.toUpperCase()})`);
+          .fillColor(textColor)
+          .text(`• ${d.document.name}`, 60, doc.y, { continued: true })
+          .fillColor('#888888')
+          .text(` (${d.document.type.toUpperCase()})`);
       });
 
-      doc.moveDown();
+      doc.moveDown(1.5);
     }
 
     // Divider
     doc
-      .strokeColor('#cccccc')
+      .strokeColor('#e5e5e5')
       .lineWidth(1)
       .moveTo(50, doc.y)
       .lineTo(545, doc.y)
       .stroke();
 
-    doc.moveDown();
+    doc.moveDown(1);
 
     // Conversation section
     doc
-      .fontSize(14)
+      .fontSize(12)
       .font('Helvetica-Bold')
-      .fillColor('#000000')
-      .text('Analysis Conversation:');
+      .fillColor(primaryColor)
+      .text('CONVERSATION', 50);
 
-    doc.moveDown();
+    doc.moveDown(1);
 
     // Messages
     for (const message of analysis.messages) {
-      const isUser = message.role === 'user';
-      const senderName = isUser ? (message.user?.name || 'User') : 'Parse AI';
+      // Check page break
+      if (doc.y > 700) {
+        doc.addPage();
+        doc.y = 50;
+      }
 
-      // Message header
+      const isUser = message.role === 'user';
+      const senderName = isUser ? (message.user?.name || 'You') : 'Parse AI';
+
+      // Sender badge
+      const badgeColor = isUser ? primaryColor : accentColor;
+      const badgeWidth = doc.widthOfString(senderName) + 16;
+
       doc
-        .fontSize(10)
+        .roundedRect(50, doc.y, badgeWidth, 18, 4)
+        .fill(badgeColor);
+
+      doc
+        .fontSize(9)
         .font('Helvetica-Bold')
-        .fillColor(isUser ? '#3b82f6' : '#10b981')
-        .text(senderName, { continued: true })
+        .fillColor('#ffffff')
+        .text(senderName, 58, doc.y - 14);
+
+      // Timestamp
+      doc
+        .fontSize(8)
         .font('Helvetica')
         .fillColor('#999999')
-        .text(`  •  ${new Date(message.createdAt).toLocaleString()}`);
+        .text(new Date(message.createdAt).toLocaleString(), 58 + badgeWidth + 8, doc.y - 12);
 
-      doc.moveDown(0.3);
+      doc.moveDown(0.8);
 
       // Message content
       doc
-        .fontSize(11)
+        .fontSize(10)
         .font('Helvetica')
-        .fillColor('#333333')
-        .text(message.content, {
-          align: 'left',
-          lineGap: 2,
+        .fillColor(textColor)
+        .text(message.content, 50, doc.y, {
+          width: 495,
+          lineGap: 3,
         });
 
-      // Check if message has edited flag
+      // Check for chart in message metadata
+      if (message.metadata) {
+        try {
+          const metadata = JSON.parse(message.metadata);
+          if (metadata.chart) {
+            doc.moveDown(0.5);
+
+            // Chart indicator box
+            doc
+              .roundedRect(50, doc.y, 495, 40, 4)
+              .fillAndStroke('#f8f9fa', '#e5e5e5');
+
+            doc
+              .fontSize(9)
+              .font('Helvetica-Bold')
+              .fillColor(primaryColor)
+              .text(`📊 Chart: ${metadata.chart.title || 'Data Visualization'}`, 60, doc.y - 28);
+
+            doc
+              .fontSize(8)
+              .font('Helvetica')
+              .fillColor('#666666')
+              .text(`Type: ${metadata.chart.type?.toUpperCase() || 'CHART'} • Data points: ${metadata.chart.data?.length || 0}`, 60, doc.y - 12);
+
+            doc.moveDown(1.5);
+          }
+        } catch {
+          // Ignore JSON parse errors
+        }
+      }
+
+      // Edited indicator
       if (message.isEdited) {
         doc
           .fontSize(8)
+          .font('Helvetica-Oblique')
           .fillColor('#999999')
-          .text('(edited)');
+          .text('(edited)', 50);
       }
 
-      doc.moveDown();
+      doc.moveDown(1.2);
+    }
 
-      // Add page break if needed
-      if (doc.y > 700) {
-        doc.addPage();
+    // Charts section (if any standalone charts)
+    if (analysis.charts && analysis.charts.length > 0) {
+      doc.addPage();
+
+      doc
+        .fontSize(12)
+        .font('Helvetica-Bold')
+        .fillColor(primaryColor)
+        .text('CHARTS & VISUALIZATIONS', 50, 50);
+
+      doc.moveDown(1);
+
+      for (const chart of analysis.charts) {
+        if (doc.y > 680) {
+          doc.addPage();
+          doc.y = 50;
+        }
+
+        // Chart card
+        doc
+          .roundedRect(50, doc.y, 495, 60, 6)
+          .fillAndStroke('#f8f9fa', '#e5e5e5');
+
+        const chartY = doc.y;
+
+        doc
+          .fontSize(11)
+          .font('Helvetica-Bold')
+          .fillColor(textColor)
+          .text(chart.title || 'Untitled Chart', 65, chartY + 12);
+
+        doc
+          .fontSize(9)
+          .font('Helvetica')
+          .fillColor('#666666')
+          .text(`Type: ${chart.type.toUpperCase()}`, 65, chartY + 30);
+
+        try {
+          const chartData = JSON.parse(chart.data);
+          doc
+            .text(`Data points: ${chartData.length}`, 200, chartY + 30);
+        } catch {
+          // Ignore
+        }
+
+        doc.y = chartY + 70;
+        doc.moveDown(0.5);
       }
     }
 
-    // Footer
-    doc.moveDown();
-    doc
-      .fontSize(8)
-      .fillColor('#999999')
-      .text(`Generated by Parse on ${new Date().toLocaleString()}`, {
-        align: 'center',
-      });
+    // Footer on all pages
+    const pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
+      doc.switchToPage(i);
+
+      // Footer line
+      doc
+        .strokeColor('#e5e5e5')
+        .lineWidth(0.5)
+        .moveTo(50, 780)
+        .lineTo(545, 780)
+        .stroke();
+
+      // Footer text
+      doc
+        .fontSize(8)
+        .font('Helvetica')
+        .fillColor('#999999')
+        .text(
+          `Generated by Parse • Page ${i + 1} of ${pages.count}`,
+          50,
+          790,
+          { width: 495, align: 'center' }
+        );
+    }
 
     // Finalize PDF
     doc.end();
