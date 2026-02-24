@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../index.js';
 import { authenticate, AuthRequest } from '../middleware/auth.js';
 import { v4 as uuidv4 } from 'uuid';
+import { sendInvitationEmail } from '../services/emailService.js';
 
 const router = Router();
 
@@ -261,8 +262,16 @@ router.post('/:id/invite', authenticate, async (req: AuthRequest, res) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const inviteLink = `${frontendUrl}/invite/${invitation.token}`;
 
-    // In production, send email here
-    // For now, return the invitation token
+    // Send invitation email
+    const emailSent = await sendInvitationEmail({
+      toEmail: email,
+      workspaceName: workspace?.name || 'Workspace',
+      inviterName: req.user!.name || req.user!.email,
+      role: invitation.role,
+      inviteLink,
+      expiresIn: '7 days',
+    });
+
     res.status(201).json({
       invitation: {
         id: invitation.id,
@@ -273,7 +282,10 @@ router.post('/:id/invite', authenticate, async (req: AuthRequest, res) => {
         workspace,
         inviteLink,
       },
-      message: 'Invitation created. Share the invite link with the user.',
+      message: emailSent
+        ? 'Invitation sent successfully.'
+        : 'Invitation created. Email could not be sent - share the invite link manually.',
+      emailSent,
     });
   } catch (error) {
     console.error('Invite user error:', error);
@@ -336,6 +348,12 @@ router.post('/:id/invitations/:invitationId/resend', authenticate, async (req: A
       return res.status(404).json({ error: 'Invitation not found' });
     }
 
+    // Get workspace info for the email
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: req.params.id },
+      select: { name: true },
+    });
+
     // Update invitation with new token and expiration
     const updatedInvitation = await prisma.invitation.update({
       where: { id: invitation.id },
@@ -345,10 +363,25 @@ router.post('/:id/invitations/:invitationId/resend', authenticate, async (req: A
       },
     });
 
-    // In production, send email here
+    // Send invitation email
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const inviteLink = `${frontendUrl}/invite/${updatedInvitation.token}`;
+
+    const emailSent = await sendInvitationEmail({
+      toEmail: updatedInvitation.email,
+      workspaceName: workspace?.name || 'Workspace',
+      inviterName: req.user!.name || req.user!.email,
+      role: updatedInvitation.role,
+      inviteLink,
+      expiresIn: '7 days',
+    });
+
     res.json({
       invitation: updatedInvitation,
-      message: 'Invitation resent. In production, an email would be sent.',
+      message: emailSent
+        ? 'Invitation resent successfully.'
+        : 'Invitation updated but email could not be sent.',
+      emailSent,
     });
   } catch (error) {
     console.error('Resend invitation error:', error);
