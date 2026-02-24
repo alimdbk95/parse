@@ -1,52 +1,38 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-// Create transporter based on environment variables
-const createTransporter = () => {
-  const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || '587', 10);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+// Initialize Resend with API key
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-  if (!host || !user || !pass) {
-    console.warn('Email service not configured. Set SMTP_HOST, SMTP_USER, and SMTP_PASS environment variables.');
-    return null;
-  }
-
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: {
-      user,
-      pass,
-    },
-  });
-};
-
-const transporter = createTransporter();
+if (!resend) {
+  console.warn('Email service not configured. Set RESEND_API_KEY environment variable.');
+}
 
 interface SendEmailOptions {
   to: string;
   subject: string;
   html: string;
-  text?: string;
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
-  if (!transporter) {
+  if (!resend) {
     console.log('Email service not configured, skipping email send');
     return false;
   }
 
   try {
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-    await transporter.sendMail({
+    const from = process.env.RESEND_FROM || 'Parse <onboarding@resend.dev>';
+    const { error } = await resend.emails.send({
       from,
       to: options.to,
       subject: options.subject,
       html: options.html,
-      text: options.text,
     });
+
+    if (error) {
+      console.error('Failed to send email:', error);
+      return false;
+    }
+
     console.log(`Email sent successfully to ${options.to}`);
     return true;
   } catch (error) {
@@ -136,23 +122,9 @@ export async function sendInvitationEmail(params: InvitationEmailParams): Promis
 </html>
 `;
 
-  const text = `
-You've been invited to join ${workspaceName} on Parse!
-
-${inviterName} has invited you to join ${workspaceName} as a ${role}.
-
-Accept the invitation by visiting: ${inviteLink}
-
-This invitation expires in ${expiresIn}.
-
----
-Parse - Research Document Analysis Platform
-`;
-
   return sendEmail({
     to: toEmail,
     subject,
     html,
-    text,
   });
 }
