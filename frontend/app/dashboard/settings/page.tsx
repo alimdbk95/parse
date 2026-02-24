@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   User,
   Palette,
@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Clock,
   Link2,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,10 +66,28 @@ const sampleChartData = [
   { name: 'May', value: 6000 },
 ];
 
+// Debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export default function SettingsPage() {
   const { user, setUser, currentWorkspace, theme, setTheme, branding, setBranding } = useStore();
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('viewer');
@@ -80,6 +99,7 @@ export default function SettingsPage() {
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [revokeInvitation, setRevokeInvitation] = useState<any>(null);
   const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Profile state
@@ -95,6 +115,17 @@ export default function SettingsPage() {
   const [selectedFont, setSelectedFont] = useState(branding.font);
   const [fontSize, setFontSize] = useState(branding.fontSize);
   const [chartBackground, setChartBackground] = useState<'dark' | 'light' | 'transparent'>(branding.chartBackground);
+
+  // Debounced values for auto-save
+  const debouncedName = useDebounce(name, 1000);
+  const debouncedChartColors = useDebounce(chartColors, 1000);
+  const debouncedPrimaryColor = useDebounce(primaryColor, 1000);
+  const debouncedAccentColor = useDebounce(accentColor, 1000);
+  const debouncedTextColor = useDebounce(textColor, 1000);
+  const debouncedBackgroundColor = useDebounce(backgroundColor, 1000);
+  const debouncedSelectedFont = useDebounce(selectedFont, 1000);
+  const debouncedFontSize = useDebounce(fontSize, 1000);
+  const debouncedChartBackground = useDebounce(chartBackground, 1000);
 
   useEffect(() => {
     if (currentWorkspace) {
@@ -119,10 +150,104 @@ export default function SettingsPage() {
         if (branding.fontSize) setFontSize(branding.fontSize);
         if (branding.chartBackground) setChartBackground(branding.chartBackground);
       }
+      // Mark as initialized after loading
+      setTimeout(() => setInitialized(true), 100);
     } catch (error) {
       console.error('Failed to load branding:', error);
+      setInitialized(true);
     }
   };
+
+  // Auto-save profile when name changes
+  useEffect(() => {
+    if (!initialized || !user || debouncedName === user.name) return;
+
+    const saveProfile = async () => {
+      setSaveStatus('saving');
+      try {
+        const { user: updatedUser } = await api.updateProfile({ name: debouncedName });
+        setUser({ ...user!, ...updatedUser });
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (error) {
+        console.error('Failed to auto-save profile:', error);
+        setSaveStatus('idle');
+      }
+    };
+
+    saveProfile();
+  }, [debouncedName, initialized]);
+
+  // Auto-save branding settings when any branding value changes
+  useEffect(() => {
+    if (!initialized) return;
+
+    const saveBranding = async () => {
+      setSaveStatus('saving');
+      try {
+        await api.updateBranding({
+          colors: debouncedChartColors,
+          font: debouncedSelectedFont,
+          fontSize: debouncedFontSize,
+          primaryColor: debouncedPrimaryColor,
+          accentColor: debouncedAccentColor,
+          textColor: debouncedTextColor,
+          backgroundColor: debouncedBackgroundColor,
+          chartBackground: debouncedChartBackground,
+          theme,
+        });
+
+        // Update the store so changes apply globally
+        setBranding({
+          chartColors: debouncedChartColors,
+          font: debouncedSelectedFont,
+          fontSize: debouncedFontSize,
+          primaryColor: debouncedPrimaryColor,
+          accentColor: debouncedAccentColor,
+          textColor: debouncedTextColor,
+          backgroundColor: debouncedBackgroundColor,
+          chartBackground: debouncedChartBackground,
+        });
+
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (error) {
+        console.error('Failed to auto-save branding:', error);
+        setSaveStatus('idle');
+      }
+    };
+
+    saveBranding();
+  }, [
+    debouncedChartColors,
+    debouncedPrimaryColor,
+    debouncedAccentColor,
+    debouncedTextColor,
+    debouncedBackgroundColor,
+    debouncedSelectedFont,
+    debouncedFontSize,
+    debouncedChartBackground,
+    initialized,
+  ]);
+
+  // Auto-save theme when it changes
+  useEffect(() => {
+    if (!initialized) return;
+
+    const saveTheme = async () => {
+      setSaveStatus('saving');
+      try {
+        await api.updateBranding({ theme });
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (error) {
+        console.error('Failed to save theme:', error);
+        setSaveStatus('idle');
+      }
+    };
+
+    saveTheme();
+  }, [theme, initialized]);
 
   const fetchMembers = async () => {
     if (!currentWorkspace) return;
@@ -291,10 +416,29 @@ export default function SettingsPage() {
       <div className="mx-auto max-w-4xl p-4 md:p-8">
         {/* Header */}
         <div className="mb-6 md:mb-8">
-          <h1 className="text-xl md:text-2xl font-bold">Settings</h1>
-          <p className="mt-1 text-sm md:text-base text-foreground-secondary">
-            Manage your account, branding, and workspace preferences
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold">Settings</h1>
+              <p className="mt-1 text-sm md:text-base text-foreground-secondary">
+                Manage your account, branding, and workspace preferences
+              </p>
+            </div>
+            {/* Auto-save status indicator */}
+            <div className="flex items-center gap-2 text-sm">
+              {saveStatus === 'saving' && (
+                <span className="flex items-center gap-1.5 text-foreground-tertiary">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </span>
+              )}
+              {saveStatus === 'saved' && (
+                <span className="flex items-center gap-1.5 text-green-500">
+                  <Check className="h-4 w-4" />
+                  Saved
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -373,9 +517,9 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <Button onClick={handleSaveProfile} loading={saving}>
-                  Save Changes
-                </Button>
+                <p className="text-xs text-foreground-tertiary">
+                  Changes are saved automatically
+                </p>
               </CardContent>
             </Card>
           </TabPanel>
@@ -650,9 +794,9 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <Button onClick={handleSaveBranding} loading={saving} className="mt-6">
-                    Save Branding Settings
-                  </Button>
+                  <p className="mt-6 text-xs text-foreground-tertiary">
+                    Changes are saved automatically
+                  </p>
                 </CardContent>
               </Card>
             </div>
