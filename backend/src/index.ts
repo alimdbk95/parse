@@ -16,6 +16,7 @@ import settingsRoutes from './routes/settings.js';
 import compareRoutes from './routes/compare.js';
 import repositoryRoutes from './routes/repositories.js';
 import searchRoutes from './routes/search.js';
+import notificationRoutes from './routes/notifications.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -64,6 +65,10 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/compare', compareRoutes);
 app.use('/api/repositories', repositoryRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/notifications', notificationRoutes);
+
+// Make io globally available for notifications
+(global as any).io = io;
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -166,6 +171,16 @@ io.on('connection', (socket) => {
   socket.on('join-analysis', (analysisId: string) => {
     socket.join(`analysis:${analysisId}`);
     console.log(`Socket ${socket.id} joined analysis:${analysisId}`);
+  });
+
+  // Join user's personal notification room
+  socket.on('join-user', (userId: string) => {
+    socket.join(`user:${userId}`);
+    console.log(`Socket ${socket.id} joined user:${userId}`);
+  });
+
+  socket.on('leave-user', (userId: string) => {
+    socket.leave(`user:${userId}`);
   });
 
   // Leave rooms

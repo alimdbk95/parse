@@ -38,6 +38,7 @@ model User {
   comments      Comment[]
   compareSessions CompareSession[]
   repositories  Repository[]
+  notifications Notification[]
 }
 
 model Workspace {
@@ -300,4 +301,27 @@ model RepositoryComparison {
   comparisonId String
 
   @@unique([repositoryId, comparisonId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String   // 'comment', 'mention', 'workspace_invite', 'analysis_shared'
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Who receives the notification
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Optional references for navigation
+  analysisId  String?
+  messageId   String?
+  workspaceId String?
+  commentId   String?
+
+  // Who triggered the notification (optional)
+  actorId   String?
+  actorName String?
 }

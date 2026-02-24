@@ -6,6 +6,7 @@ import { Menu, X, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '@/components/layout/sidebar';
 import { SearchModal } from '@/components/search/search-modal';
+import { NotificationCenter } from '@/components/notifications/notification-center';
 import { useStore } from '@/lib/store';
 import { api } from '@/lib/api';
 import { BrandingProvider } from '@/components/providers/branding-provider';
@@ -183,13 +184,16 @@ export default function DashboardLayout({
                 <span className="text-sm font-semibold">Parse</span>
               </div>
 
-              <button
-                onClick={handleNewAnalysis}
-                className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-background-tertiary active:scale-95 transition-all"
-                aria-label="New analysis"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <NotificationCenter />
+                <button
+                  onClick={handleNewAnalysis}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-background-tertiary active:scale-95 transition-all"
+                  aria-label="New analysis"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              </div>
             </motion.header>
           )}
         </AnimatePresence>

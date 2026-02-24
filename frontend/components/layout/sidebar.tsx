@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { Logo, LogoIcon } from '@/components/ui/logo';
 import { Menu, MenuItem, MenuDivider } from '@/components/ui/dropdown';
+import { NotificationCenter } from '@/components/notifications/notification-center';
 import { useStore } from '@/lib/store';
 import { api } from '@/lib/api';
 
@@ -113,19 +114,22 @@ export function Sidebar({ analyses = [], onNewAnalysis, onOpenSearch }: SidebarP
               <LogoIcon size={36} />
             )}
           </Link>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-foreground-tertiary"
-          >
-            <ChevronLeft
-              className={cn(
-                'h-4 w-4 transition-transform',
-                !sidebarOpen && 'rotate-180'
-              )}
-            />
-          </Button>
+          <div className="flex items-center gap-1">
+            {sidebarOpen && <NotificationCenter />}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="text-foreground-tertiary"
+            >
+              <ChevronLeft
+                className={cn(
+                  'h-4 w-4 transition-transform',
+                  !sidebarOpen && 'rotate-180'
+                )}
+              />
+            </Button>
+          </div>
         </div>
       )}
 

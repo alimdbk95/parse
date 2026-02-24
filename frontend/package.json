@@ -11,6 +11,7 @@
   "dependencies": {
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
+    "date-fns": "^4.1.0",
     "framer-motion": "^11.0.8",
     "highcharts": "^12.5.0",
     "highcharts-react-official": "^3.2.3",

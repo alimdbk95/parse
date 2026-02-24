@@ -3,6 +3,7 @@ import { prisma } from '../index.js';
 import { authenticate, AuthRequest } from '../middleware/auth.js';
 import { aiService } from '../services/aiService.js';
 import PDFDocument from 'pdfkit';
+import { createNotification, extractMentions, findUsersByMention } from './notifications.js';
 
 const router = Router();
 
@@ -579,7 +580,7 @@ router.post('/:analysisId/messages/:messageId/comments', authenticate, async (re
     const { content } = req.body;
     const { analysisId, messageId } = req.params;
 
-    // Verify access
+    // Verify access and get analysis with workspace members
     const analysis = await prisma.analysis.findFirst({
       where: {
         id: analysisId,
@@ -593,6 +594,18 @@ router.post('/:analysisId/messages/:messageId/comments', authenticate, async (re
             },
           },
         ],
+      },
+      include: {
+        createdBy: { select: { id: true, name: true } },
+        workspace: {
+          include: {
+            members: {
+              include: {
+                user: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -616,6 +629,45 @@ router.post('/:analysisId/messages/:messageId/comments', authenticate, async (re
     // Emit socket event
     const io = req.app.get('io');
     io.to(`analysis:${analysisId}`).emit('new-comment', { comment, messageId });
+
+    // Create notifications for @mentions
+    const mentions = extractMentions(content);
+    if (mentions.length > 0 && analysis.workspaceId) {
+      const mentionedUsers = await findUsersByMention(mentions, analysis.workspaceId);
+      for (const user of mentionedUsers) {
+        if (user.id !== req.user!.id) {
+          const notification = await createNotification({
+            userId: user.id,
+            type: 'mention',
+            title: 'You were mentioned',
+            message: `${req.user!.name} mentioned you in a comment on "${analysis.title}"`,
+            analysisId,
+            messageId,
+            commentId: comment.id,
+            actorId: req.user!.id,
+            actorName: req.user!.name,
+          });
+          // Send real-time notification
+          io.to(`user:${user.id}`).emit('notification', notification);
+        }
+      }
+    }
+
+    // Notify analysis creator if they're not the commenter
+    if (analysis.createdById !== req.user!.id) {
+      const notification = await createNotification({
+        userId: analysis.createdById,
+        type: 'comment',
+        title: 'New comment on your analysis',
+        message: `${req.user!.name} commented on "${analysis.title}"`,
+        analysisId,
+        messageId,
+        commentId: comment.id,
+        actorId: req.user!.id,
+        actorName: req.user!.name,
+      });
+      io.to(`user:${analysis.createdById}`).emit('notification', notification);
+    }
 
     res.status(201).json({ comment });
   } catch (error) {

@@ -571,6 +571,45 @@ class ApiClient {
       }>;
     }>(`/search?q=${encodeURIComponent(query)}`);
   }
+
+  // Notifications
+  async getNotifications() {
+    return this.request<{
+      notifications: Array<{
+        id: string;
+        type: string;
+        title: string;
+        message: string;
+        read: boolean;
+        createdAt: string;
+        analysisId?: string;
+        messageId?: string;
+        workspaceId?: string;
+        commentId?: string;
+        actorId?: string;
+        actorName?: string;
+      }>;
+      unreadCount: number;
+    }>('/notifications');
+  }
+
+  async markNotificationRead(notificationId: string) {
+    return this.request<{ notification: any }>(`/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+    });
+  }
+
+  async markAllNotificationsRead() {
+    return this.request<{ message: string }>('/notifications/read-all', {
+      method: 'PATCH',
+    });
+  }
+
+  async deleteNotification(notificationId: string) {
+    return this.request<{ message: string }>(`/notifications/${notificationId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new ApiClient();
