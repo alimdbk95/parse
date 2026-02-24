@@ -20,6 +20,7 @@ import {
   Clock,
   Link2,
   Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,6 +101,8 @@ export default function SettingsPage() {
   const [revokeInvitation, setRevokeInvitation] = useState<any>(null);
   const [lastInviteLink, setLastInviteLink] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Profile state
@@ -249,6 +252,14 @@ export default function SettingsPage() {
     saveTheme();
   }, [theme, initialized]);
 
+  // Auto-dismiss invite success message
+  useEffect(() => {
+    if (inviteSuccess) {
+      const timer = setTimeout(() => setInviteSuccess(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [inviteSuccess]);
+
   const fetchMembers = async () => {
     if (!currentWorkspace) return;
     try {
@@ -335,20 +346,37 @@ export default function SettingsPage() {
   };
 
   const handleInvite = async () => {
-    if (!inviteEmail || !currentWorkspace) return;
+    if (!inviteEmail) {
+      setInviteError('Please enter an email address');
+      return;
+    }
+    if (!currentWorkspace) {
+      setInviteError('No workspace selected');
+      return;
+    }
+
     setInviting(true);
+    setInviteError(null);
+    setInviteSuccess(null);
+
     try {
       const result = await api.inviteToWorkspace(currentWorkspace.id, inviteEmail, inviteRole);
+
       // If an invitation was created (not direct member add), show the link
       if (result.invitation?.inviteLink) {
         setLastInviteLink(result.invitation.inviteLink);
+      } else if (result.member) {
+        // User was added directly (they already had an account)
+        setInviteSuccess(`${inviteEmail} has been added to the workspace`);
       }
+
       setShowInvite(false);
       setInviteEmail('');
       fetchMembers();
       fetchInvitations();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to invite:', error);
+      setInviteError(error?.message || 'Failed to send invitation');
     } finally {
       setInviting(false);
     }
@@ -805,6 +833,20 @@ export default function SettingsPage() {
           {/* Team Tab */}
           <TabPanel id="team" activeTab={activeTab}>
             <div className="mt-6 space-y-6">
+              {/* Success/Error notifications */}
+              {inviteSuccess && (
+                <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3 text-sm text-green-400 flex items-center gap-2">
+                  <Check className="h-4 w-4" />
+                  {inviteSuccess}
+                  <button
+                    onClick={() => setInviteSuccess(null)}
+                    className="ml-auto text-green-400/60 hover:text-green-400"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
               {/* Team Members Card */}
               <Card>
                 <CardHeader>
@@ -980,16 +1022,27 @@ export default function SettingsPage() {
       {/* Invite Modal */}
       <Modal
         isOpen={showInvite}
-        onClose={() => setShowInvite(false)}
+        onClose={() => {
+          setShowInvite(false);
+          setInviteError(null);
+        }}
         title="Invite Team Member"
         description="Send an invitation to join your workspace"
       >
         <div className="space-y-4">
+          {inviteError && (
+            <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400">
+              {inviteError}
+            </div>
+          )}
           <Input
             label="Email Address"
             type="email"
             value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
+            onChange={(e) => {
+              setInviteEmail(e.target.value);
+              setInviteError(null);
+            }}
             placeholder="colleague@company.com"
             icon={<Mail className="h-4 w-4" />}
           />
