@@ -39,6 +39,8 @@ model User {
   compareSessions CompareSession[]
   repositories  Repository[]
   notifications Notification[]
+  templates     Template[]
+  chartAnnotations ChartAnnotation[]
 }
 
 model Workspace {
@@ -58,6 +60,7 @@ model Workspace {
   analyses    Analysis[]
   charts      Chart[]
   invitations Invitation[]
+  templates   Template[]
 }
 
 model WorkspaceMember {
@@ -94,6 +97,7 @@ model Document {
   workspace    Workspace? @relation(fields: [workspaceId], references: [id])
 
   analyses     AnalysisDocument[]
+  semanticInsights SemanticInsight[]
 }
 
 model Analysis {
@@ -113,6 +117,7 @@ model Analysis {
   documents   AnalysisDocument[]
   messages    Message[]
   charts      Chart[]
+  semanticInsights SemanticInsight[]
 }
 
 model AnalysisDocument {
@@ -172,6 +177,8 @@ model Chart {
 
   analysisId  String?
   analysis    Analysis? @relation(fields: [analysisId], references: [id])
+
+  annotations ChartAnnotation[]
 }
 
 model Invitation {
@@ -324,4 +331,80 @@ model Notification {
   // Who triggered the notification (optional)
   actorId   String?
   actorName String?
+}
+
+// Template Builder - reusable report templates
+model Template {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  thumbnail   String?   // Preview image URL
+  isPublic    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+
+  sections    TemplateSection[]
+}
+
+model TemplateSection {
+  id          String    @id @default(uuid())
+  type        String    // 'text', 'chart', 'heading', 'divider', 'image', 'table'
+  content     String?   // JSON string with section-specific content
+  position    Int       @default(0)
+  width       String    @default("full") // 'full', 'half', 'third'
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  templateId  String
+  template    Template  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  // Optional link to existing chart
+  chartId     String?
+}
+
+// Chart Annotations - notes on specific data points
+model ChartAnnotation {
+  id          String    @id @default(uuid())
+  content     String    // The annotation text
+  dataIndex   Int       // Index of the data point being annotated
+  dataKey     String?   // Which data series (for multi-series charts)
+  x           Float?    // X position for free-form annotations
+  y           Float?    // Y position for free-form annotations
+  color       String?   // Annotation color
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  chartId     String
+  chart       Chart     @relation(fields: [chartId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+}
+
+// Semantic Analysis - AI-extracted insights from documents
+model SemanticInsight {
+  id          String    @id @default(uuid())
+  type        String    // 'theme', 'entity', 'sentiment', 'keyphrase', 'summary'
+  label       String    // The identified theme/entity/phrase
+  value       String?   // Additional value (e.g., sentiment score, frequency)
+  confidence  Float?    // AI confidence score 0-1
+  context     String?   // Surrounding text or source reference
+  metadata    String?   // JSON string for additional data
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  documentId  String
+  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  analysisId  String?
+  analysis    Analysis? @relation(fields: [analysisId], references: [id], onDelete: Cascade)
 }

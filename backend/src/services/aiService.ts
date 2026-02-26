@@ -51,6 +51,36 @@ class ClaudeAIService {
     }
   }
 
+  private async callWithRetry<T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    baseDelayMs: number = 1000
+  ): Promise<T> {
+    let lastError: any;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error: any) {
+        lastError = error;
+
+        // Check if it's an overloaded error (529) or rate limit (429)
+        const status = error?.status || error?.statusCode;
+        if (status === 529 || status === 429) {
+          const delay = baseDelayMs * Math.pow(2, attempt); // Exponential backoff
+          console.log(`API overloaded (${status}), retrying in ${delay}ms... (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // For other errors, throw immediately
+        throw error;
+      }
+    }
+
+    throw lastError;
+  }
+
   async generateResponse(
     userMessage: string,
     context: AnalysisContext
@@ -253,15 +283,17 @@ Use clear markdown formatting:
 
 ${documentContext}${urlContext}`;
 
-      const response = await this.client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [
-          ...conversationHistory,
-          { role: 'user', content: userMessage }
-        ],
-      });
+      const response = await this.callWithRetry(() =>
+        this.client!.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [
+            ...conversationHistory,
+            { role: 'user', content: userMessage }
+          ],
+        })
+      );
 
       // Extract text content
       const textContent = response.content
@@ -596,20 +628,22 @@ Ask me questions about this document or request visualizations!`;
     }
 
     try {
-      const response = await this.client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
-        messages: [
-          {
-            role: 'user',
-            content: `Briefly analyze this document and provide key insights (2-3 paragraphs max):
+      const response = await this.callWithRetry(() =>
+        this.client!.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1024,
+          messages: [
+            {
+              role: 'user',
+              content: `Briefly analyze this document and provide key insights (2-3 paragraphs max):
 
 Document: ${documentName}
 Content (first 5000 chars):
 ${content.slice(0, 5000)}${content.length > 5000 ? '\n... (truncated)' : ''}`,
-          },
-        ],
-      });
+            },
+          ],
+        })
+      );
 
       const textContent = response.content
         .filter(block => block.type === 'text')

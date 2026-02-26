@@ -17,6 +17,9 @@ import compareRoutes from './routes/compare.js';
 import repositoryRoutes from './routes/repositories.js';
 import searchRoutes from './routes/search.js';
 import notificationRoutes from './routes/notifications.js';
+import templateRoutes from './routes/templates.js';
+import annotationRoutes from './routes/annotations.js';
+import semanticRoutes from './routes/semantics.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -66,6 +69,9 @@ app.use('/api/compare', compareRoutes);
 app.use('/api/repositories', repositoryRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/templates', templateRoutes);
+app.use('/api/annotations', annotationRoutes);
+app.use('/api/semantics', semanticRoutes);
 
 // Make io globally available for notifications
 (global as any).io = io;

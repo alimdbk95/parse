@@ -16,6 +16,8 @@ import {
   Folder,
   Search,
   Command,
+  Layout,
+  Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -374,6 +376,60 @@ export function Sidebar({ analyses = [], onNewAnalysis, onOpenSearch }: SidebarP
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
+
+        {/* Templates Link */}
+        <div className="mt-2">
+          <Link
+            href="/dashboard/templates"
+            onClick={handleLinkClick}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              pathname.startsWith('/dashboard/templates')
+                ? 'bg-primary/10 text-primary'
+                : 'text-foreground-secondary hover:bg-background-tertiary hover:text-foreground'
+            )}
+          >
+            <Layout className="h-5 w-5 flex-shrink-0" />
+            <AnimatePresence>
+              {sidebarOpen && (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  Templates
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </Link>
+        </div>
+
+        {/* Semantic Analysis Link */}
+        <div className="mt-2">
+          <Link
+            href="/dashboard/insights"
+            onClick={handleLinkClick}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              pathname.startsWith('/dashboard/insights')
+                ? 'bg-primary/10 text-primary'
+                : 'text-foreground-secondary hover:bg-background-tertiary hover:text-foreground'
+            )}
+          >
+            <Brain className="h-5 w-5 flex-shrink-0" />
+            <AnimatePresence>
+              {sidebarOpen && (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  Insights
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </Link>
         </div>
 
         {/* Settings Link */}

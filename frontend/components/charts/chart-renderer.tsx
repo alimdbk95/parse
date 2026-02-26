@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
-import { Pencil, X, Check, Plus, Trash2, RotateCcw } from 'lucide-react';
+import { Pencil, X, Check, Plus, Trash2, RotateCcw, MessageSquare, Send } from 'lucide-react';
+import { api } from '@/lib/api';
 
 const defaultColors = [
   '#f97066', // coral
@@ -16,6 +17,16 @@ const defaultColors = [
   '#34d399', // emerald
 ];
 
+interface Annotation {
+  id: string;
+  content: string;
+  dataIndex: number;
+  dataKey?: string;
+  color?: string;
+  createdBy?: { id: string; name: string; avatar?: string };
+  createdAt?: string;
+}
+
 interface ChartRendererProps {
   type: 'bar' | 'line' | 'pie' | 'area' | 'scatter';
   data: any[];
@@ -26,6 +37,8 @@ interface ChartRendererProps {
   background?: 'light' | 'dark' | 'transparent';
   enableZoom?: boolean;
   enableEdit?: boolean;
+  enableAnnotations?: boolean;
+  chartId?: string;
   onDataChange?: (newData: any[]) => void;
 }
 
@@ -39,6 +52,8 @@ export function ChartRenderer({
   background = 'dark',
   enableZoom = true,
   enableEdit = true,
+  enableAnnotations = false,
+  chartId,
   onDataChange,
 }: ChartRendererProps) {
   const chartRef = useRef<HighchartsReact.RefObject>(null);
@@ -49,12 +64,63 @@ export function ChartRenderer({
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
 
+  // Annotations state
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [showAnnotations, setShowAnnotations] = useState(false);
+  const [addingAnnotation, setAddingAnnotation] = useState<{ dataIndex: number; dataKey?: string } | null>(null);
+  const [newAnnotationText, setNewAnnotationText] = useState('');
+  const [selectedAnnotation, setSelectedAnnotation] = useState<string | null>(null);
+
   // Initialize editable data when entering edit mode
   useEffect(() => {
     if (isEditMode && data) {
       setEditableData(JSON.parse(JSON.stringify(data)));
     }
   }, [isEditMode, data]);
+
+  // Fetch annotations when chart has an ID and annotations are enabled
+  useEffect(() => {
+    if (enableAnnotations && chartId) {
+      fetchAnnotations();
+    }
+  }, [enableAnnotations, chartId]);
+
+  const fetchAnnotations = async () => {
+    if (!chartId) return;
+    try {
+      const { annotations: fetchedAnnotations } = await api.getChartAnnotations(chartId);
+      setAnnotations(fetchedAnnotations);
+    } catch (error) {
+      console.error('Failed to fetch annotations:', error);
+    }
+  };
+
+  const handleAddAnnotation = async () => {
+    if (!chartId || !addingAnnotation || !newAnnotationText.trim()) return;
+
+    try {
+      const { annotation } = await api.createChartAnnotation(chartId, {
+        content: newAnnotationText,
+        dataIndex: addingAnnotation.dataIndex,
+        dataKey: addingAnnotation.dataKey,
+      });
+      setAnnotations([...annotations, annotation]);
+      setAddingAnnotation(null);
+      setNewAnnotationText('');
+    } catch (error) {
+      console.error('Failed to add annotation:', error);
+    }
+  };
+
+  const handleDeleteAnnotation = async (annotationId: string) => {
+    try {
+      await api.deleteChartAnnotation(annotationId);
+      setAnnotations(annotations.filter((a) => a.id !== annotationId));
+      setSelectedAnnotation(null);
+    } catch (error) {
+      console.error('Failed to delete annotation:', error);
+    }
+  };
 
   if (!data || !Array.isArray(data) || data.length === 0 || !data[0]) {
     return (
@@ -242,6 +308,19 @@ export function ChartRenderer({
           animation: {
             duration: 500,
           },
+          point: {
+            events: {
+              click: function (this: Highcharts.Point) {
+                if (enableAnnotations && showAnnotations && chartId) {
+                  setAddingAnnotation({
+                    dataIndex: this.index,
+                    dataKey: this.series?.name,
+                  });
+                }
+              },
+            },
+          },
+          cursor: enableAnnotations && showAnnotations ? 'pointer' : 'default',
         },
         bar: {
           borderRadius: 4,
@@ -500,6 +579,26 @@ export function ChartRenderer({
     >
       {/* Chart Controls */}
       <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
+        {/* Annotations button */}
+        {enableAnnotations && chartId && !isEditMode && (
+          <button
+            onClick={() => setShowAnnotations(!showAnnotations)}
+            className={`p-1.5 rounded-md transition-colors ${
+              showAnnotations
+                ? 'bg-primary text-white'
+                : 'bg-background-tertiary/80 hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
+            }`}
+            title={showAnnotations ? 'Hide annotations' : 'Show annotations'}
+          >
+            <MessageSquare className="h-4 w-4" />
+            {annotations.length > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 text-[10px] flex items-center justify-center bg-primary text-white rounded-full">
+                {annotations.length}
+              </span>
+            )}
+          </button>
+        )}
+
         {/* Edit button */}
         {enableEdit && !isEditMode && (
           <button
@@ -555,6 +654,111 @@ export function ChartRenderer({
 
       {/* Editable Data Table */}
       {renderDataTable()}
+
+      {/* Annotations Panel */}
+      {enableAnnotations && showAnnotations && chartId && (
+        <div className="mt-3 border border-border rounded-lg overflow-hidden">
+          <div className="bg-background-secondary px-3 py-2 border-b border-border flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Annotations
+            </span>
+            <span className="text-xs text-foreground-tertiary">
+              Click on data points to add
+            </span>
+          </div>
+
+          {/* Add annotation form */}
+          {addingAnnotation && (
+            <div className="p-3 border-b border-border bg-background-tertiary/50">
+              <p className="text-xs text-foreground-secondary mb-2">
+                Adding annotation for data point {addingAnnotation.dataIndex + 1}
+                {addingAnnotation.dataKey && ` (${addingAnnotation.dataKey})`}
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newAnnotationText}
+                  onChange={(e) => setNewAnnotationText(e.target.value)}
+                  placeholder="Enter your annotation..."
+                  className="flex-1 px-3 py-1.5 text-sm bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddAnnotation();
+                    if (e.key === 'Escape') {
+                      setAddingAnnotation(null);
+                      setNewAnnotationText('');
+                    }
+                  }}
+                />
+                <button
+                  onClick={handleAddAnnotation}
+                  disabled={!newAnnotationText.trim()}
+                  className="p-1.5 rounded bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    setAddingAnnotation(null);
+                    setNewAnnotationText('');
+                  }}
+                  className="p-1.5 rounded bg-background-tertiary text-foreground-secondary hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Annotations list */}
+          <div className="max-h-48 overflow-y-auto">
+            {annotations.length === 0 ? (
+              <div className="p-4 text-center text-sm text-foreground-tertiary">
+                No annotations yet. Click on a data point to add one.
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {annotations.map((annotation) => (
+                  <div
+                    key={annotation.id}
+                    className={`p-3 hover:bg-background-tertiary/50 cursor-pointer ${
+                      selectedAnnotation === annotation.id ? 'bg-background-tertiary/50' : ''
+                    }`}
+                    onClick={() =>
+                      setSelectedAnnotation(
+                        selectedAnnotation === annotation.id ? null : annotation.id
+                      )
+                    }
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm">{annotation.content}</p>
+                        <p className="text-xs text-foreground-tertiary mt-1">
+                          Point {annotation.dataIndex + 1}
+                          {annotation.dataKey && ` • ${annotation.dataKey}`}
+                          {annotation.createdBy && ` • by ${annotation.createdBy.name}`}
+                        </p>
+                      </div>
+                      {selectedAnnotation === annotation.id && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteAnnotation(annotation.id);
+                          }}
+                          className="p-1 rounded text-foreground-tertiary hover:text-red-500 hover:bg-red-500/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

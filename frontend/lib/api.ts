@@ -610,6 +610,188 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Templates
+  async getTemplates() {
+    return this.request<{ templates: any[] }>('/templates');
+  }
+
+  async getTemplate(id: string) {
+    return this.request<{ template: any }>(`/templates/${id}`);
+  }
+
+  async createTemplate(data: {
+    name: string;
+    description?: string;
+    workspaceId?: string;
+    isPublic?: boolean;
+    sections?: Array<{
+      type: string;
+      content?: any;
+      position?: number;
+      width?: string;
+      chartId?: string;
+    }>;
+  }) {
+    return this.request<{ template: any }>('/templates', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async updateTemplate(
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      isPublic?: boolean;
+      sections?: Array<{
+        type: string;
+        content?: any;
+        position?: number;
+        width?: string;
+        chartId?: string;
+      }>;
+    }
+  ) {
+    return this.request<{ template: any }>(`/templates/${id}`, {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteTemplate(id: string) {
+    return this.request<{ message: string }>(`/templates/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async duplicateTemplate(id: string) {
+    return this.request<{ template: any }>(`/templates/${id}/duplicate`, {
+      method: 'POST',
+    });
+  }
+
+  async addTemplateSection(
+    templateId: string,
+    section: { type: string; content?: any; position?: number; width?: string; chartId?: string }
+  ) {
+    return this.request<{ section: any }>(`/templates/${templateId}/sections`, {
+      method: 'POST',
+      body: section,
+    });
+  }
+
+  async updateTemplateSection(templateId: string, sectionId: string, data: any) {
+    return this.request<{ section: any }>(`/templates/${templateId}/sections/${sectionId}`, {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteTemplateSection(templateId: string, sectionId: string) {
+    return this.request<{ message: string }>(`/templates/${templateId}/sections/${sectionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderTemplateSections(templateId: string, sectionIds: string[]) {
+    return this.request<{ sections: any[] }>(`/templates/${templateId}/sections/reorder`, {
+      method: 'PUT',
+      body: { sectionIds },
+    });
+  }
+
+  // Chart Annotations
+  async getChartAnnotations(chartId: string) {
+    return this.request<{ annotations: any[] }>(`/annotations/charts/${chartId}`);
+  }
+
+  async createChartAnnotation(
+    chartId: string,
+    data: {
+      content: string;
+      dataIndex?: number;
+      dataKey?: string;
+      x?: number;
+      y?: number;
+      color?: string;
+    }
+  ) {
+    return this.request<{ annotation: any }>(`/annotations/charts/${chartId}`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async updateChartAnnotation(annotationId: string, data: { content?: string; color?: string }) {
+    return this.request<{ annotation: any }>(`/annotations/${annotationId}`, {
+      method: 'PUT',
+      body: data,
+    });
+  }
+
+  async deleteChartAnnotation(annotationId: string) {
+    return this.request<{ message: string }>(`/annotations/${annotationId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Semantic Analysis
+  async getDocumentInsights(documentId: string) {
+    return this.request<{
+      insights: {
+        themes: any[];
+        entities: any[];
+        keyphrases: any[];
+        sentiment: any;
+        summary: any;
+      };
+      documentName: string;
+    }>(`/semantics/documents/${documentId}`);
+  }
+
+  async analyzeDocument(documentId: string, analysisId?: string) {
+    return this.request<{
+      insights: {
+        themes: any[];
+        entities: any[];
+        keyphrases: any[];
+        sentiment: any;
+        summary: any;
+      };
+      documentName: string;
+    }>(`/semantics/documents/${documentId}/analyze`, {
+      method: 'POST',
+      body: { analysisId },
+    });
+  }
+
+  async getAnalysisInsights(analysisId: string) {
+    return this.request<{
+      insights: {
+        themes: any[];
+        entities: any[];
+        keyphrases: any[];
+        sentiments: any[];
+        summaries: any[];
+      };
+      aggregated: {
+        themes: Array<{ label: string; count: number; confidence: number; contexts: string[] }>;
+        documentCount: number;
+      };
+      documents: Array<{ id: string; name: string }>;
+    }>(`/semantics/analyses/${analysisId}`);
+  }
+
+  async analyzeAllDocuments(analysisId: string) {
+    return this.request<{
+      results: Array<{ documentId: string; documentName: string; result: any }>;
+      documentsAnalyzed: number;
+    }>(`/semantics/analyses/${analysisId}/analyze`, {
+      method: 'POST',
+    });
+  }
 }
 
 export const api = new ApiClient();

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus, FileText, BarChart3, Users, Zap, ArrowRight, Pencil, Check, X, Trash2,
-  FolderPlus, Folder, MessageSquare, MoreHorizontal, GitCompare
+  FolderPlus, Folder, MessageSquare, MoreHorizontal, GitCompare, Layout, Brain
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -51,6 +51,7 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [recentAnalyses, setRecentAnalyses] = useState<any[]>([]);
   const [repositories, setRepositories] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const [showCreateRepo, setShowCreateRepo] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -67,14 +68,16 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [docsRes, analysesRes, reposRes] = await Promise.all([
+        const [docsRes, analysesRes, reposRes, templatesRes] = await Promise.all([
           api.getDocuments(),
           api.getAnalyses(),
           api.getRepositories(),
+          api.getTemplates(),
         ]);
         setDocuments(docsRes.documents.slice(0, 4));
         setRecentAnalyses(analysesRes.analyses.slice(0, 5));
         setRepositories(reposRes.repositories);
+        setTemplates(templatesRes.templates.slice(0, 3));
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -333,6 +336,74 @@ export default function DashboardPage() {
               >
                 <FolderPlus className="mr-2 h-4 w-4" />
                 Create Repository
+              </Button>
+            </Card>
+          )}
+        </div>
+
+        {/* Templates Section */}
+        <div className="mb-6 md:mb-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Templates</h2>
+            <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard/templates')}>
+              View all
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-32 animate-pulse rounded-xl bg-background-secondary"
+                />
+              ))}
+            </div>
+          ) : templates.length > 0 ? (
+            <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              {templates.map((template) => (
+                <Card
+                  key={template.id}
+                  className="group cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg"
+                  onClick={() => router.push(`/dashboard/templates/${template.id}`)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                        <Layout className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium truncate">{template.name}</h3>
+                        {template.description && (
+                          <p className="text-sm text-foreground-tertiary line-clamp-1">
+                            {template.description}
+                          </p>
+                        )}
+                        <p className="text-xs text-foreground-tertiary mt-1">
+                          {template._count?.sections || template.sections?.length || 0} sections
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="p-8 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                <Layout className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="font-medium">No templates yet</h3>
+              <p className="mt-1 text-sm text-foreground-tertiary">
+                Create templates to build reusable reports with charts and text
+              </p>
+              <Button
+                className="mt-4"
+                onClick={() => router.push('/dashboard/templates')}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create Template
               </Button>
             </Card>
           )}
