@@ -13,7 +13,7 @@ import {
   Type,
   Calendar,
   ToggleLeft,
-  Function,
+  Sigma,
   List,
   MoreVertical,
 } from 'lucide-react';
@@ -44,7 +44,7 @@ const COLUMN_TYPES = [
   { type: 'number', label: 'Number', icon: Hash },
   { type: 'date', label: 'Date', icon: Calendar },
   { type: 'boolean', label: 'Checkbox', icon: ToggleLeft },
-  { type: 'formula', label: 'Formula', icon: Function },
+  { type: 'formula', label: 'Formula', icon: Sigma },
   { type: 'select', label: 'Select', icon: List },
 ];
 
@@ -52,7 +52,7 @@ export function DataTable({ tableId, documentId, onTableCreated }: DataTableProp
   const [table, setTable] = useState<{
     id: string;
     name: string;
-    columns: Column[];
+    columns: Array<{ name: string; type: string; formula?: string; width?: number }>;
     data: any[][];
     calculatedData: any[][];
   } | null>(null);
@@ -239,7 +239,7 @@ export function DataTable({ tableId, documentId, onTableCreated }: DataTableProp
     });
   }, [table, sortColumn, sortDirection]);
 
-  const formatCellValue = (value: any, column: Column): string => {
+  const formatCellValue = (value: any, column: { name: string; type: string }): string => {
     if (value === null || value === undefined) return '';
     if (column.type === 'boolean') return value ? 'Yes' : 'No';
     if (column.type === 'number' && typeof value === 'number') {

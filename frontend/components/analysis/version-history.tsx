@@ -39,6 +39,7 @@ interface VersionHistoryProps {
   analysisId: string;
   isOpen: boolean;
   onClose: () => void;
+  onVersionRestored?: () => void;
 }
 
 const CHANGE_TYPE_ICONS: Record<string, any> = {
@@ -71,7 +72,7 @@ const CHANGE_TYPE_COLORS: Record<string, string> = {
   restored: 'text-green-500 bg-green-500/10',
 };
 
-export function VersionHistory({ analysisId, isOpen, onClose }: VersionHistoryProps) {
+export function VersionHistory({ analysisId, isOpen, onClose, onVersionRestored }: VersionHistoryProps) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -165,6 +166,7 @@ export function VersionHistory({ analysisId, isOpen, onClose }: VersionHistoryPr
       await api.restoreVersion(analysisId, versionId);
       setShowRestoreConfirm(null);
       await fetchVersions();
+      onVersionRestored?.();
     } catch (error) {
       console.error('Failed to restore version:', error);
     } finally {
