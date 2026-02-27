@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Brain, FileText, ChevronRight, Sparkles, RefreshCw } from 'lucide-react';
+import { Brain, FileText, ChevronRight, Sparkles, LayoutDashboard, List, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { useStore } from '@/lib/store';
 import { SemanticInsightsPanel } from '@/components/insights/semantic-insights-panel';
+import { InsightsDashboard } from '@/components/insights/insights-dashboard';
+import { SemanticSearch } from '@/components/insights/semantic-search';
 import { cn } from '@/lib/utils';
 
 export default function InsightsPage() {
@@ -17,6 +19,7 @@ export default function InsightsPage() {
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
   const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'documents' | 'analyses'>('documents');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'search' | 'details'>('dashboard');
 
   useEffect(() => {
     fetchData();
@@ -60,7 +63,7 @@ export default function InsightsPage() {
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-6xl p-4 md:p-8">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Brain className="h-5 w-5 text-primary" />
@@ -72,141 +75,207 @@ export default function InsightsPage() {
               </p>
             </div>
           </div>
+
+          {/* Tab Toggle */}
+          <div className="flex rounded-lg bg-background-secondary p-1">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={cn(
+                'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                activeTab === 'dashboard'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-foreground-secondary hover:text-foreground'
+              )}
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab('search')}
+              className={cn(
+                'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                activeTab === 'search'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-foreground-secondary hover:text-foreground'
+              )}
+            >
+              <Search className="h-4 w-4" />
+              Search
+            </button>
+            <button
+              onClick={() => setActiveTab('details')}
+              className={cn(
+                'flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                activeTab === 'details'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-foreground-secondary hover:text-foreground'
+              )}
+            >
+              <List className="h-4 w-4" />
+              Details
+            </button>
+          </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[350px,1fr]">
-          {/* Left Panel - Document/Analysis Selection */}
-          <div className="space-y-4">
-            {/* View Mode Toggle */}
-            <div className="flex rounded-lg bg-background-secondary p-1">
-              <button
-                onClick={() => setViewMode('documents')}
-                className={cn(
-                  'flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                  viewMode === 'documents'
-                    ? 'bg-background text-foreground'
-                    : 'text-foreground-secondary hover:text-foreground'
-                )}
-              >
-                Documents
-              </button>
-              <button
-                onClick={() => setViewMode('analyses')}
-                className={cn(
-                  'flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                  viewMode === 'analyses'
-                    ? 'bg-background text-foreground'
-                    : 'text-foreground-secondary hover:text-foreground'
-                )}
-              >
-                Analyses
-              </button>
-            </div>
+        {activeTab === 'dashboard' ? (
+          <InsightsDashboard workspaceId={currentWorkspace?.id} />
+        ) : activeTab === 'search' ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                Semantic Search
+              </CardTitle>
+              <CardDescription>
+                Search across all your documents by meaning, context, and related concepts
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SemanticSearch
+                workspaceId={currentWorkspace?.id}
+                onSelectDocument={(docId) => {
+                  setSelectedDocument(docId);
+                  setSelectedAnalysis(null);
+                  setActiveTab('details');
+                }}
+              />
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-[350px,1fr]">
+            {/* Left Panel - Document/Analysis Selection */}
+            <div className="space-y-4">
+              {/* View Mode Toggle */}
+              <div className="flex rounded-lg bg-background-secondary p-1">
+                <button
+                  onClick={() => setViewMode('documents')}
+                  className={cn(
+                    'flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                    viewMode === 'documents'
+                      ? 'bg-background text-foreground'
+                      : 'text-foreground-secondary hover:text-foreground'
+                  )}
+                >
+                  Documents
+                </button>
+                <button
+                  onClick={() => setViewMode('analyses')}
+                  className={cn(
+                    'flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                    viewMode === 'analyses'
+                      ? 'bg-background text-foreground'
+                      : 'text-foreground-secondary hover:text-foreground'
+                  )}
+                >
+                  Analyses
+                </button>
+              </div>
 
-            {/* List */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">
-                  {viewMode === 'documents' ? 'Select Document' : 'Select Analysis'}
-                </CardTitle>
-                <CardDescription>
-                  Choose an item to view its semantic insights
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="max-h-[400px] overflow-y-auto">
-                  {viewMode === 'documents' ? (
-                    documents.length === 0 ? (
+              {/* List */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">
+                    {viewMode === 'documents' ? 'Select Document' : 'Select Analysis'}
+                  </CardTitle>
+                  <CardDescription>
+                    Choose an item to view its semantic insights
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="max-h-[400px] overflow-y-auto">
+                    {viewMode === 'documents' ? (
+                      documents.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-foreground-tertiary">
+                          No documents uploaded yet
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-border">
+                          {documents.map((doc) => (
+                            <button
+                              key={doc.id}
+                              onClick={() => handleSelectDocument(doc.id)}
+                              className={cn(
+                                'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-background-tertiary transition-colors',
+                                selectedDocument === doc.id && 'bg-primary/5'
+                              )}
+                            >
+                              <FileText className="h-4 w-4 text-foreground-tertiary flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{doc.name}</p>
+                                <p className="text-xs text-foreground-tertiary">
+                                  {doc.type} • {(doc.size / 1024).toFixed(1)} KB
+                                </p>
+                              </div>
+                              <ChevronRight
+                                className={cn(
+                                  'h-4 w-4 text-foreground-tertiary transition-transform',
+                                  selectedDocument === doc.id && 'text-primary'
+                                )}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      )
+                    ) : analyses.length === 0 ? (
                       <div className="p-4 text-center text-sm text-foreground-tertiary">
-                        No documents uploaded yet
+                        No analyses created yet
                       </div>
                     ) : (
                       <div className="divide-y divide-border">
-                        {documents.map((doc) => (
+                        {analyses.map((analysis) => (
                           <button
-                            key={doc.id}
-                            onClick={() => handleSelectDocument(doc.id)}
+                            key={analysis.id}
+                            onClick={() => handleSelectAnalysis(analysis.id)}
                             className={cn(
                               'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-background-tertiary transition-colors',
-                              selectedDocument === doc.id && 'bg-primary/5'
+                              selectedAnalysis === analysis.id && 'bg-primary/5'
                             )}
                           >
-                            <FileText className="h-4 w-4 text-foreground-tertiary flex-shrink-0" />
+                            <Brain className="h-4 w-4 text-foreground-tertiary flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">{doc.name}</p>
+                              <p className="font-medium truncate">{analysis.title}</p>
                               <p className="text-xs text-foreground-tertiary">
-                                {doc.type} • {(doc.size / 1024).toFixed(1)} KB
+                                {analysis._count?.documents || 0} documents
                               </p>
                             </div>
                             <ChevronRight
                               className={cn(
                                 'h-4 w-4 text-foreground-tertiary transition-transform',
-                                selectedDocument === doc.id && 'text-primary'
+                                selectedAnalysis === analysis.id && 'text-primary'
                               )}
                             />
                           </button>
                         ))}
                       </div>
-                    )
-                  ) : analyses.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-foreground-tertiary">
-                      No analyses created yet
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right Panel - Insights Display */}
+            <Card>
+              <CardContent className="p-6">
+                {selectedDocument ? (
+                  <SemanticInsightsPanel documentId={selectedDocument} />
+                ) : selectedAnalysis ? (
+                  <SemanticInsightsPanel analysisId={selectedAnalysis} />
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                      <Sparkles className="h-8 w-8 text-primary" />
                     </div>
-                  ) : (
-                    <div className="divide-y divide-border">
-                      {analyses.map((analysis) => (
-                        <button
-                          key={analysis.id}
-                          onClick={() => handleSelectAnalysis(analysis.id)}
-                          className={cn(
-                            'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-background-tertiary transition-colors',
-                            selectedAnalysis === analysis.id && 'bg-primary/5'
-                          )}
-                        >
-                          <Brain className="h-4 w-4 text-foreground-tertiary flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{analysis.title}</p>
-                            <p className="text-xs text-foreground-tertiary">
-                              {analysis._count?.documents || 0} documents
-                            </p>
-                          </div>
-                          <ChevronRight
-                            className={cn(
-                              'h-4 w-4 text-foreground-tertiary transition-transform',
-                              selectedAnalysis === analysis.id && 'text-primary'
-                            )}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                    <h3 className="text-lg font-medium mb-2">Select an Item</h3>
+                    <p className="text-sm text-foreground-secondary max-w-sm">
+                      Choose a document or analysis from the left panel to view AI-extracted
+                      semantic insights including themes, entities, key phrases, and sentiment.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
-
-          {/* Right Panel - Insights Display */}
-          <Card>
-            <CardContent className="p-6">
-              {selectedDocument ? (
-                <SemanticInsightsPanel documentId={selectedDocument} />
-              ) : selectedAnalysis ? (
-                <SemanticInsightsPanel analysisId={selectedAnalysis} />
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                    <Sparkles className="h-8 w-8 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-medium mb-2">Select an Item</h3>
-                  <p className="text-sm text-foreground-secondary max-w-sm">
-                    Choose a document or analysis from the left panel to view AI-extracted
-                    semantic insights including themes, entities, key phrases, and sentiment.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        )}
       </div>
     </div>
   );

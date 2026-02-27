@@ -792,6 +792,789 @@ class ApiClient {
       method: 'POST',
     });
   }
+
+  async getInsightsDashboard(workspaceId?: string) {
+    const params = workspaceId ? `?workspaceId=${workspaceId}` : '';
+    return this.request<{
+      sentiments: { positive: number; negative: number; neutral: number; mixed: number };
+      themes: Array<{ label: string; count: number; confidence: number }>;
+      entities: Array<{ type: string; count: number; unique: number; examples: string[] }>;
+      keyphrases: Array<{ label: string; frequency: number }>;
+      timeline: Array<{
+        date: string;
+        analyzed: number;
+        sentiments: { positive: number; negative: number; neutral: number; mixed: number };
+      }>;
+      totalDocuments: number;
+      analyzedDocuments: number;
+    }>(`/semantics/dashboard${params}`);
+  }
+
+  // Semantic Search
+  async semanticSearch(
+    query: string,
+    options?: { workspaceId?: string; limit?: number; includeUnanalyzed?: boolean }
+  ) {
+    const params = new URLSearchParams({ q: query });
+    if (options?.workspaceId) params.set('workspaceId', options.workspaceId);
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.includeUnanalyzed !== undefined) {
+      params.set('includeUnanalyzed', String(options.includeUnanalyzed));
+    }
+
+    return this.request<{
+      results: Array<{
+        id: string;
+        type: 'document' | 'insight';
+        documentId: string;
+        documentName: string;
+        title: string;
+        snippet: string;
+        relevanceScore: number;
+        matchType: 'semantic' | 'keyword' | 'theme' | 'entity' | 'keyphrase';
+        metadata?: {
+          themes?: string[];
+          entities?: string[];
+          sentiment?: string;
+        };
+      }>;
+      query: {
+        original: string;
+        expanded: string[];
+        intent: string;
+        entities: string[];
+        themes: string[];
+      };
+      totalMatches: number;
+    }>(`/semantics/search?${params.toString()}`);
+  }
+
+  async findSimilarDocuments(documentId: string, options?: { workspaceId?: string; limit?: number }) {
+    const params = new URLSearchParams();
+    if (options?.workspaceId) params.set('workspaceId', options.workspaceId);
+    if (options?.limit) params.set('limit', String(options.limit));
+
+    const queryString = params.toString();
+    return this.request<{
+      similar: Array<{
+        id: string;
+        type: 'document';
+        documentId: string;
+        documentName: string;
+        title: string;
+        snippet: string;
+        relevanceScore: number;
+        matchType: string;
+        metadata?: {
+          themes?: string[];
+          entities?: string[];
+          sentiment?: string;
+        };
+      }>;
+    }>(`/semantics/documents/${documentId}/similar${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async searchWithinDocument(documentId: string, query: string) {
+    return this.request<{
+      matches: Array<{
+        type: 'content' | 'theme' | 'entity' | 'keyphrase';
+        text: string;
+        context?: string;
+        position?: number;
+      }>;
+      documentName: string;
+    }>(`/semantics/documents/${documentId}/search?q=${encodeURIComponent(query)}`);
+  }
+
+  // Smart Highlights
+  async getDocumentHighlights(documentId: string) {
+    return this.request<{
+      highlights: Array<{
+        id: string;
+        type: string;
+        text: string;
+        startOffset: number;
+        endOffset: number;
+        importance: string;
+        category?: string;
+        explanation?: string;
+        confidence?: number;
+        isUserAdded: boolean;
+        createdAt: string;
+        createdBy?: { id: string; name: string };
+      }>;
+      stats: {
+        total: number;
+        aiGenerated: number;
+        userAdded: number;
+        byType: Record<string, number>;
+        byImportance: Record<string, number>;
+        byCategory: Record<string, number>;
+      };
+      documentName: string;
+    }>(`/highlights/documents/${documentId}`);
+  }
+
+  async extractHighlights(documentId: string) {
+    return this.request<{
+      highlights: Array<{
+        type: string;
+        text: string;
+        startOffset: number;
+        endOffset: number;
+        importance: string;
+        category?: string;
+        explanation?: string;
+        confidence?: number;
+      }>;
+      summary: string;
+      documentName: string;
+    }>(`/highlights/documents/${documentId}/extract`, {
+      method: 'POST',
+    });
+  }
+
+  async addHighlight(
+    documentId: string,
+    data: {
+      text: string;
+      startOffset: number;
+      endOffset: number;
+      type?: string;
+      importance?: string;
+      category?: string;
+      explanation?: string;
+    }
+  ) {
+    return this.request<{
+      highlight: {
+        id: string;
+        type: string;
+        text: string;
+        startOffset: number;
+        endOffset: number;
+        importance: string;
+        category?: string;
+        explanation?: string;
+        isUserAdded: boolean;
+        createdBy?: { id: string; name: string };
+      };
+    }>(`/highlights/documents/${documentId}`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async updateHighlight(
+    highlightId: string,
+    data: { type?: string; importance?: string; category?: string; explanation?: string }
+  ) {
+    return this.request<{ highlight: any }>(`/highlights/${highlightId}`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async deleteHighlight(highlightId: string) {
+    return this.request<{ message: string }>(`/highlights/${highlightId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Version History
+  async getVersionHistory(analysisId: string, options?: { limit?: number; offset?: number }) {
+    const params = new URLSearchParams();
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.offset) params.set('offset', String(options.offset));
+    const queryString = params.toString();
+
+    return this.request<{
+      versions: Array<{
+        id: string;
+        version: number;
+        title: string;
+        changeType: string;
+        changeSummary: string;
+        createdAt: string;
+        createdBy: { id: string; name: string; avatar?: string };
+      }>;
+      total: number;
+      hasMore: boolean;
+    }>(`/versions/analyses/${analysisId}${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getVersion(versionId: string) {
+    return this.request<{
+      version: {
+        id: string;
+        version: number;
+        title: string;
+        description?: string;
+        changeType: string;
+        changeSummary: string;
+        createdAt: string;
+        createdBy: { id: string; name: string; avatar?: string };
+        snapshot: {
+          title: string;
+          description: string | null;
+          messages: Array<{
+            id: string;
+            role: string;
+            content: string;
+            metadata: string | null;
+            createdAt: string;
+          }>;
+          documents: Array<{ id: string; name: string; type: string }>;
+          charts: Array<{ id: string; title: string; type: string }>;
+        };
+      };
+    }>(`/versions/${versionId}`);
+  }
+
+  async compareVersions(versionId1: string, versionId2: string) {
+    return this.request<{
+      version1: { id: string; version: number; createdAt: string; createdBy: any };
+      version2: { id: string; version: number; createdAt: string; createdBy: any };
+      changes: Array<{
+        type: 'added' | 'removed' | 'modified';
+        category: 'message' | 'document' | 'chart' | 'metadata';
+        description: string;
+        before?: any;
+        after?: any;
+      }>;
+      summary: { added: number; removed: number; modified: number };
+    }>(`/versions/compare/${versionId1}/${versionId2}`);
+  }
+
+  async restoreVersion(analysisId: string, versionId: string) {
+    return this.request<{ message: string }>(`/versions/analyses/${analysisId}/restore/${versionId}`, {
+      method: 'POST',
+    });
+  }
+
+  async getVersionStats(analysisId: string) {
+    return this.request<{
+      totalVersions: number;
+      byChangeType: Record<string, number>;
+      byDate: Record<string, number>;
+      firstVersion: string | null;
+      latestVersion: string | null;
+    }>(`/versions/analyses/${analysisId}/stats`);
+  }
+
+  // Knowledge Graphs
+  async getKnowledgeGraphs(options?: { workspaceId?: string; analysisId?: string }) {
+    const params = new URLSearchParams();
+    if (options?.workspaceId) params.set('workspaceId', options.workspaceId);
+    if (options?.analysisId) params.set('analysisId', options.analysisId);
+    const queryString = params.toString();
+
+    return this.request<{
+      graphs: Array<{
+        id: string;
+        name: string;
+        description?: string;
+        createdAt: string;
+        updatedAt: string;
+        _count: { nodes: number; edges: number };
+        createdBy: { id: string; name: string };
+      }>;
+    }>(`/knowledge-graphs${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getKnowledgeGraph(graphId: string) {
+    return this.request<{
+      graph: {
+        id: string;
+        name: string;
+        description?: string;
+        nodes: Array<{
+          id: string;
+          label: string;
+          type: string;
+          properties?: string;
+          x?: number;
+          y?: number;
+          color?: string;
+          size: number;
+        }>;
+        edges: Array<{
+          id: string;
+          label: string;
+          weight: number;
+          sourceId: string;
+          targetId: string;
+          source: { id: string; label: string };
+          target: { id: string; label: string };
+        }>;
+        createdBy: { id: string; name: string };
+      };
+    }>(`/knowledge-graphs/${graphId}`);
+  }
+
+  async createKnowledgeGraph(data: {
+    name: string;
+    description?: string;
+    workspaceId?: string;
+    analysisId?: string;
+  }) {
+    return this.request<{ graph: any }>('/knowledge-graphs', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async buildGraphFromDocument(documentId: string, name?: string) {
+    return this.request<{ graph: any }>(`/knowledge-graphs/from-document/${documentId}`, {
+      method: 'POST',
+      body: { name },
+    });
+  }
+
+  async addGraphNode(graphId: string, data: {
+    label: string;
+    type: string;
+    x?: number;
+    y?: number;
+    color?: string;
+    properties?: Record<string, any>;
+  }) {
+    return this.request<{ node: any }>(`/knowledge-graphs/${graphId}/nodes`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async updateGraphNode(nodeId: string, data: {
+    label?: string;
+    type?: string;
+    color?: string;
+    size?: number;
+    properties?: Record<string, any>;
+  }) {
+    return this.request<{ node: any }>(`/knowledge-graphs/nodes/${nodeId}`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async updateNodePosition(nodeId: string, x: number, y: number) {
+    return this.request<{ node: any }>(`/knowledge-graphs/nodes/${nodeId}/position`, {
+      method: 'PATCH',
+      body: { x, y },
+    });
+  }
+
+  async deleteGraphNode(nodeId: string) {
+    return this.request<{ message: string }>(`/knowledge-graphs/nodes/${nodeId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addGraphEdge(graphId: string, data: {
+    sourceId: string;
+    targetId: string;
+    label: string;
+    weight?: number;
+  }) {
+    return this.request<{ edge: any }>(`/knowledge-graphs/${graphId}/edges`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async deleteGraphEdge(edgeId: string) {
+    return this.request<{ message: string }>(`/knowledge-graphs/edges/${edgeId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deleteKnowledgeGraph(graphId: string) {
+    return this.request<{ message: string }>(`/knowledge-graphs/${graphId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Data Tables
+  async getDataTables(options?: { workspaceId?: string; analysisId?: string }) {
+    const params = new URLSearchParams();
+    if (options?.workspaceId) params.set('workspaceId', options.workspaceId);
+    if (options?.analysisId) params.set('analysisId', options.analysisId);
+    const queryString = params.toString();
+
+    return this.request<{
+      tables: Array<{
+        id: string;
+        name: string;
+        description?: string;
+        columns: Array<{ name: string; type: string; formula?: string }>;
+        rowCount: number;
+        createdAt: string;
+        updatedAt: string;
+        createdBy: { id: string; name: string };
+      }>;
+    }>(`/data-tables${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getDataTable(tableId: string) {
+    return this.request<{
+      table: {
+        id: string;
+        name: string;
+        description?: string;
+        columns: Array<{ name: string; type: string; formula?: string; width?: number }>;
+        data: any[][];
+        calculatedData: any[][];
+        config?: {
+          sortColumn?: string;
+          sortDirection?: 'asc' | 'desc';
+          frozenColumns?: number;
+        };
+        createdBy: { id: string; name: string };
+      };
+    }>(`/data-tables/${tableId}`);
+  }
+
+  async createDataTable(data: {
+    name: string;
+    description?: string;
+    columns: Array<{ name: string; type: string; formula?: string }>;
+    data?: any[][];
+    workspaceId?: string;
+    analysisId?: string;
+  }) {
+    return this.request<{ table: any }>('/data-tables', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async createTableFromDocument(documentId: string, name?: string) {
+    return this.request<{ table: any }>(`/data-tables/from-document/${documentId}`, {
+      method: 'POST',
+      body: { name },
+    });
+  }
+
+  async updateTableData(tableId: string, data: any[][]) {
+    return this.request<{ table: any }>(`/data-tables/${tableId}/data`, {
+      method: 'PATCH',
+      body: { data },
+    });
+  }
+
+  async updateTableColumns(tableId: string, columns: Array<{ name: string; type: string; formula?: string }>) {
+    return this.request<{ table: any }>(`/data-tables/${tableId}/columns`, {
+      method: 'PATCH',
+      body: { columns },
+    });
+  }
+
+  async addTableRow(tableId: string, rowData?: any[]) {
+    return this.request<{ table: any }>(`/data-tables/${tableId}/rows`, {
+      method: 'POST',
+      body: { data: rowData },
+    });
+  }
+
+  async deleteTableRow(tableId: string, rowIndex: number) {
+    return this.request<{ table: any }>(`/data-tables/${tableId}/rows/${rowIndex}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addTableColumn(tableId: string, column: { name: string; type: string; formula?: string }, position?: number) {
+    return this.request<{ table: any }>(`/data-tables/${tableId}/columns`, {
+      method: 'POST',
+      body: { column, position },
+    });
+  }
+
+  async deleteTableColumn(tableId: string, columnIndex: number) {
+    return this.request<{ table: any }>(`/data-tables/${tableId}/columns/${columnIndex}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async exportTableCSV(tableId: string): Promise<Blob> {
+    const token = this.getToken();
+    const response = await fetch(`${API_URL}/data-tables/${tableId}/export/csv`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    return response.blob();
+  }
+
+  async deleteDataTable(tableId: string) {
+    return this.request<{ message: string }>(`/data-tables/${tableId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Timelines
+  async getTimelines(options?: { workspaceId?: string; analysisId?: string }) {
+    const params = new URLSearchParams();
+    if (options?.workspaceId) params.set('workspaceId', options.workspaceId);
+    if (options?.analysisId) params.set('analysisId', options.analysisId);
+    const queryString = params.toString();
+
+    return this.request<{
+      timelines: Array<{
+        id: string;
+        name: string;
+        description?: string;
+        startDate?: string;
+        endDate?: string;
+        _count: { events: number };
+        createdAt: string;
+        updatedAt: string;
+        createdBy: { id: string; name: string };
+      }>;
+    }>(`/timelines${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getTimeline(timelineId: string) {
+    return this.request<{
+      timeline: {
+        id: string;
+        name: string;
+        description?: string;
+        startDate?: string;
+        endDate?: string;
+        events: Array<{
+          id: string;
+          title: string;
+          description?: string;
+          date: string;
+          endDate?: string;
+          type: string;
+          category?: string;
+          color?: string;
+          icon?: string;
+          importance: string;
+          metadata?: string;
+        }>;
+        createdBy: { id: string; name: string };
+      };
+    }>(`/timelines/${timelineId}`);
+  }
+
+  async createTimeline(data: {
+    name: string;
+    description?: string;
+    workspaceId?: string;
+    analysisId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    return this.request<{ timeline: any }>('/timelines', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async buildTimelineFromDocument(documentId: string, name?: string) {
+    return this.request<{ timeline: any }>(`/timelines/from-document/${documentId}`, {
+      method: 'POST',
+      body: { name },
+    });
+  }
+
+  async addTimelineEvent(timelineId: string, event: {
+    title: string;
+    description?: string;
+    date: string;
+    endDate?: string;
+    type?: string;
+    category?: string;
+    color?: string;
+    icon?: string;
+    importance?: string;
+    metadata?: Record<string, any>;
+  }) {
+    return this.request<{ event: any }>(`/timelines/${timelineId}/events`, {
+      method: 'POST',
+      body: event,
+    });
+  }
+
+  async updateTimelineEvent(eventId: string, data: {
+    title?: string;
+    description?: string;
+    date?: string;
+    endDate?: string;
+    type?: string;
+    category?: string;
+    color?: string;
+    importance?: string;
+  }) {
+    return this.request<{ event: any }>(`/timelines/events/${eventId}`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async deleteTimelineEvent(eventId: string) {
+    return this.request<{ message: string }>(`/timelines/events/${eventId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deleteTimeline(timelineId: string) {
+    return this.request<{ message: string }>(`/timelines/${timelineId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Media Files (Audio/Video)
+  async getMediaFiles(options?: { workspaceId?: string; analysisId?: string; type?: 'audio' | 'video' }) {
+    const params = new URLSearchParams();
+    if (options?.workspaceId) params.set('workspaceId', options.workspaceId);
+    if (options?.analysisId) params.set('analysisId', options.analysisId);
+    if (options?.type) params.set('type', options.type);
+    const queryString = params.toString();
+
+    return this.request<{
+      files: Array<{
+        id: string;
+        name: string;
+        type: 'audio' | 'video';
+        mimeType: string;
+        size: number;
+        duration?: number;
+        transcriptionStatus: string;
+        _count: { segments: number };
+        createdAt: string;
+        uploadedBy: { id: string; name: string };
+      }>;
+    }>(`/media${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getMediaFile(mediaId: string) {
+    return this.request<{
+      media: {
+        id: string;
+        name: string;
+        type: 'audio' | 'video';
+        mimeType: string;
+        size: number;
+        path: string;
+        duration?: number;
+        transcriptionStatus: string;
+        transcription?: string;
+        segments: Array<{
+          id: string;
+          startTime: number;
+          endTime: number;
+          text: string;
+          speaker?: string;
+          confidence?: number;
+          isEdited: boolean;
+          notes?: string;
+        }>;
+        uploadedBy: { id: string; name: string };
+      };
+    }>(`/media/${mediaId}`);
+  }
+
+  async uploadMedia(file: File, options?: { workspaceId?: string; analysisId?: string; duration?: number }) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (options?.workspaceId) formData.append('workspaceId', options.workspaceId);
+    if (options?.analysisId) formData.append('analysisId', options.analysisId);
+    if (options?.duration) formData.append('duration', String(options.duration));
+
+    return this.request<{ media: any }>('/media/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async startTranscription(mediaId: string) {
+    return this.request<{ status: string; message: string }>(`/media/${mediaId}/transcribe`, {
+      method: 'POST',
+    });
+  }
+
+  async getTranscription(mediaId: string) {
+    return this.request<{
+      status: string;
+      transcription?: string;
+      segments: Array<{
+        id: string;
+        startTime: number;
+        endTime: number;
+        text: string;
+        speaker?: string;
+        confidence?: number;
+      }>;
+      meta?: {
+        wordCount: number;
+        segmentCount: number;
+        speakers: string[];
+      };
+    }>(`/media/${mediaId}/transcription`);
+  }
+
+  async searchTranscription(mediaId: string, query: string) {
+    return this.request<{
+      segments: Array<{
+        id: string;
+        startTime: number;
+        endTime: number;
+        text: string;
+        speaker?: string;
+      }>;
+      matches: number;
+    }>(`/media/${mediaId}/search?q=${encodeURIComponent(query)}`);
+  }
+
+  async analyzeTranscript(mediaId: string) {
+    return this.request<{
+      analysis: {
+        summary: string;
+        topics: string[];
+        keyPoints: string[];
+        actionItems: string[];
+        sentiment: string;
+      };
+    }>(`/media/${mediaId}/analyze`);
+  }
+
+  async updateMediaSegment(segmentId: string, data: {
+    text?: string;
+    speaker?: string;
+    notes?: string;
+    tags?: string[];
+  }) {
+    return this.request<{ segment: any }>(`/media/segments/${segmentId}`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async addMediaSegment(mediaId: string, segment: {
+    startTime: number;
+    endTime: number;
+    text: string;
+    speaker?: string;
+  }) {
+    return this.request<{ segment: any }>(`/media/${mediaId}/segments`, {
+      method: 'POST',
+      body: segment,
+    });
+  }
+
+  async deleteMediaSegment(segmentId: string) {
+    return this.request<{ message: string }>(`/media/segments/${segmentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deleteMediaFile(mediaId: string) {
+    return this.request<{ message: string }>(`/media/${mediaId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new ApiClient();

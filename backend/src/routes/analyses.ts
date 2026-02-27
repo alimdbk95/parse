@@ -4,6 +4,7 @@ import { authenticate, AuthRequest } from '../middleware/auth.js';
 import { aiService } from '../services/aiService.js';
 import PDFDocument from 'pdfkit';
 import { createNotification, extractMentions, findUsersByMention } from './notifications.js';
+import { createVersion } from '../services/versionService.js';
 
 const router = Router();
 
@@ -83,6 +84,9 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
         analysisId: analysis.id,
       },
     });
+
+    // Create initial version
+    await createVersion(analysis.id, req.user!.id, 'created');
 
     // Emit socket event
     const io = req.app.get('io');
@@ -288,6 +292,9 @@ router.post('/:id/messages', authenticate, async (req: AuthRequest, res) => {
       data: { updatedAt: new Date() },
     });
 
+    // Create version for the new message
+    await createVersion(analysisId, req.user!.id, 'message_added', content.slice(0, 50));
+
     res.status(201).json({
       userMessage,
       assistantMessage,
@@ -345,6 +352,9 @@ router.post('/:id/documents', authenticate, async (req: AuthRequest, res) => {
       },
     });
 
+    // Create version for document addition
+    await createVersion(analysisId, req.user!.id, 'document_added', analysisDoc.document.name);
+
     // Emit socket event
     const io = req.app.get('io');
     io.to(`analysis:${analysisId}`).emit('document-added', {
@@ -391,6 +401,9 @@ router.delete('/:id/documents/:documentId', authenticate, async (req: AuthReques
       },
     });
 
+    // Create version for document removal
+    await createVersion(analysisId, req.user!.id, 'document_removed');
+
     // Emit socket event
     const io = req.app.get('io');
     io.to(`analysis:${analysisId}`).emit('document-removed', { documentId });
@@ -425,6 +438,13 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res) => {
     const updated = await prisma.analysis.findUnique({
       where: { id: req.params.id },
     });
+
+    // Create version for title/description change
+    if (title) {
+      await createVersion(req.params.id, req.user!.id, 'title_changed', title);
+    } else if (description !== undefined) {
+      await createVersion(req.params.id, req.user!.id, 'description_changed');
+    }
 
     res.json({ analysis: updated });
   } catch (error) {
@@ -495,6 +515,9 @@ router.patch('/:analysisId/messages/:messageId', authenticate, async (req: AuthR
         },
       },
     });
+
+    // Create version for message edit
+    await createVersion(analysisId, req.user!.id, 'message_edited');
 
     // Emit socket event
     const io = req.app.get('io');

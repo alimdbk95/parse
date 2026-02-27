@@ -203,7 +203,7 @@ export default function DocumentsPage() {
               <DocumentCard
                 key={doc.id}
                 document={doc}
-                onView={() => handleStartAnalysis(doc.id)}
+                onView={() => router.push(`/dashboard/documents/${doc.id}`)}
                 onDownload={() => handleDownload(doc)}
                 onDelete={() => setDeleteDoc(doc)}
               />

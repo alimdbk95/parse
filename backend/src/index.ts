@@ -20,6 +20,12 @@ import notificationRoutes from './routes/notifications.js';
 import templateRoutes from './routes/templates.js';
 import annotationRoutes from './routes/annotations.js';
 import semanticRoutes from './routes/semantics.js';
+import highlightRoutes from './routes/highlights.js';
+import versionRoutes from './routes/versions.js';
+import knowledgeGraphRoutes from './routes/knowledgeGraph.js';
+import dataTableRoutes from './routes/dataTables.js';
+import timelineRoutes from './routes/timelines.js';
+import mediaRoutes from './routes/media.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -72,6 +78,12 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/annotations', annotationRoutes);
 app.use('/api/semantics', semanticRoutes);
+app.use('/api/highlights', highlightRoutes);
+app.use('/api/versions', versionRoutes);
+app.use('/api/knowledge-graphs', knowledgeGraphRoutes);
+app.use('/api/data-tables', dataTableRoutes);
+app.use('/api/timelines', timelineRoutes);
+app.use('/api/media', mediaRoutes);
 
 // Make io globally available for notifications
 (global as any).io = io;

@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Paperclip, Plus, Pencil, Check, X, Download, Eye, FolderPlus, Folder, FileText, Image, ChevronDown, MessageSquare } from 'lucide-react';
+import { Paperclip, Plus, Pencil, Check, X, Download, Eye, FolderPlus, Folder, FileText, Image, ChevronDown, MessageSquare, History } from 'lucide-react';
 import { MessageList } from '@/components/chat/message-list';
 import { ChatInput } from '@/components/chat/chat-input';
 import { CommentPanel } from '@/components/chat/comment-panel';
+import { VersionHistory } from '@/components/analysis/version-history';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
@@ -51,6 +52,9 @@ export default function ChatPage() {
   // Comments state
   const [messageComments, setMessageComments] = useState<Record<string, Comment[]>>({});
   const [showCommentPanel, setShowCommentPanel] = useState(false);
+
+  // Version history state
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
 
   // Check if user can edit (admin or editor)
   const canEdit = userRole === 'admin' || userRole === 'editor';
@@ -394,6 +398,32 @@ export default function ChatPage() {
     }
   };
 
+  const handleVersionRestored = async () => {
+    // Refetch analysis data after a version restore
+    try {
+      const { analysis, userRole: role } = await api.getAnalysis(analysisId);
+      setAnalysis(analysis);
+      setUserRole(role);
+      setEditedTitle(analysis.title);
+
+      const parsedMessages = (analysis.messages || []).map((msg: any) => {
+        let metadata = null;
+        if (msg.metadata) {
+          try {
+            metadata = typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata;
+          } catch (e) {
+            metadata = null;
+          }
+        }
+        return { ...msg, metadata };
+      });
+      setMessages(parsedMessages);
+      setDocuments(analysis.documents?.map((d: any) => d.document) || []);
+    } catch (error) {
+      console.error('Failed to refresh analysis after restore:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -503,6 +533,15 @@ export default function ChatPage() {
               Download Charts as JPEG
             </MenuItem>
           </Menu>
+          {/* Version History */}
+          <button
+            onClick={() => setShowVersionHistory(true)}
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all"
+            title="Version History"
+          >
+            <History className="h-4 w-4" />
+            <span className="hidden sm:inline text-xs">History</span>
+          </button>
           {/* Comments indicator */}
           <button
             onClick={() => setShowCommentPanel(true)}
@@ -708,6 +747,14 @@ export default function ChatPage() {
         onUpdateComment={handleUpdateComment}
         onDeleteComment={handleDeleteComment}
         onScrollToMessage={handleScrollToMessage}
+      />
+
+      {/* Version History */}
+      <VersionHistory
+        analysisId={analysisId}
+        isOpen={showVersionHistory}
+        onClose={() => setShowVersionHistory(false)}
+        onVersionRestored={handleVersionRestored}
       />
     </div>
   );

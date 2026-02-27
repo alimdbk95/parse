@@ -41,6 +41,12 @@ model User {
   notifications Notification[]
   templates     Template[]
   chartAnnotations ChartAnnotation[]
+  documentHighlights DocumentHighlight[]
+  analysisVersions AnalysisVersion[]
+  knowledgeGraphs KnowledgeGraph[]
+  dataTables    DataTable[]
+  timelines     Timeline[]
+  mediaFiles    MediaFile[]
 }
 
 model Workspace {
@@ -98,6 +104,7 @@ model Document {
 
   analyses     AnalysisDocument[]
   semanticInsights SemanticInsight[]
+  highlights   DocumentHighlight[]
 }
 
 model Analysis {
@@ -118,6 +125,7 @@ model Analysis {
   messages    Message[]
   charts      Chart[]
   semanticInsights SemanticInsight[]
+  versions    AnalysisVersion[]
 }
 
 model AnalysisDocument {
@@ -407,4 +415,239 @@ model SemanticInsight {
 
   analysisId  String?
   analysis    Analysis? @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+}
+
+// Smart Highlights - AI-detected important content in documents
+model DocumentHighlight {
+  id          String    @id @default(uuid())
+  type        String    // 'fact', 'statistic', 'claim', 'definition', 'quote', 'conclusion'
+  text        String    // The highlighted text
+  startOffset Int       // Character offset where highlight starts
+  endOffset   Int       // Character offset where highlight ends
+  importance  String    // 'critical', 'high', 'medium', 'low'
+  category    String?   // Optional category for grouping (e.g., 'financial', 'technical')
+  explanation String?   // AI explanation of why this is important
+  confidence  Float?    // AI confidence score 0-1
+  isUserAdded Boolean   @default(false) // True if user manually added
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  documentId  String
+  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?     @relation(fields: [createdById], references: [id])
+
+  @@index([documentId])
+}
+
+// Analysis Version History - track changes over time
+model AnalysisVersion {
+  id          String    @id @default(uuid())
+  version     Int       // Incremental version number
+  title       String    // Analysis title at this version
+  description String?   // Analysis description at this version
+  snapshot    String    // JSON snapshot of analysis state (messages, charts, documents)
+  changeType  String    // 'message_added', 'message_edited', 'chart_added', 'document_added', 'title_changed', etc.
+  changeSummary String? // Human-readable summary of what changed
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  analysisId  String
+  analysis    Analysis  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  @@index([analysisId])
+  @@index([createdAt])
+}
+
+// Knowledge Graph - Entity relationships visualization
+model KnowledgeGraph {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  workspaceId String?
+  analysisId  String?
+
+  nodes       GraphNode[]
+  edges       GraphEdge[]
+
+  @@index([workspaceId])
+  @@index([analysisId])
+}
+
+model GraphNode {
+  id          String    @id @default(uuid())
+  label       String    // Display name
+  type        String    // 'person', 'organization', 'location', 'concept', 'event', 'document'
+  properties  String?   // JSON string of additional properties
+  x           Float?    // X position for layout
+  y           Float?    // Y position for layout
+  color       String?   // Node color
+  size        Float     @default(1) // Node size multiplier
+  sourceDocId String?   // Document this entity was extracted from
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  graphId     String
+  graph       KnowledgeGraph @relation(fields: [graphId], references: [id], onDelete: Cascade)
+
+  outgoingEdges GraphEdge[] @relation("SourceNode")
+  incomingEdges GraphEdge[] @relation("TargetNode")
+
+  @@index([graphId])
+  @@index([type])
+}
+
+model GraphEdge {
+  id          String    @id @default(uuid())
+  label       String    // Relationship type (e.g., 'works_at', 'located_in', 'mentions')
+  weight      Float     @default(1) // Edge strength/importance
+  properties  String?   // JSON string of additional properties
+  color       String?   // Edge color
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  graphId     String
+  graph       KnowledgeGraph @relation(fields: [graphId], references: [id], onDelete: Cascade)
+
+  sourceId    String
+  source      GraphNode @relation("SourceNode", fields: [sourceId], references: [id], onDelete: Cascade)
+
+  targetId    String
+  target      GraphNode @relation("TargetNode", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([graphId])
+}
+
+// Interactive Data Tables
+model DataTable {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  columns     String    // JSON array of column definitions [{name, type, formula?, width?}]
+  data        String    // JSON array of row data
+  config      String?   // JSON config (sorting, filtering, styling)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  workspaceId String?
+  analysisId  String?
+  documentId  String?   // If extracted from a document
+
+  @@index([workspaceId])
+  @@index([analysisId])
+}
+
+// Timeline Events
+model Timeline {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  workspaceId String?
+  analysisId  String?
+
+  events      TimelineEvent[]
+
+  @@index([workspaceId])
+  @@index([analysisId])
+}
+
+model TimelineEvent {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime
+  endDate     DateTime? // For events with duration
+  type        String    @default("event") // 'event', 'milestone', 'period', 'deadline'
+  category    String?   // For grouping/filtering
+  color       String?   // Event color
+  icon        String?   // Icon name
+  importance  String    @default("medium") // 'low', 'medium', 'high', 'critical'
+  sourceDocId String?   // Document this event was extracted from
+  metadata    String?   // JSON string for additional data
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  timelineId  String
+  timeline    Timeline  @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+
+  @@index([timelineId])
+  @@index([date])
+}
+
+// Media Files - Audio/Video with transcription
+model MediaFile {
+  id          String    @id @default(uuid())
+  name        String
+  type        String    // 'audio', 'video'
+  mimeType    String
+  size        Int
+  path        String
+  duration    Float?    // Duration in seconds
+  thumbnail   String?   // Thumbnail path for video
+  waveform    String?   // JSON array of audio waveform data
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Transcription
+  transcriptionStatus String @default("pending") // 'pending', 'processing', 'completed', 'failed'
+  transcription       String? // Full text transcription
+  transcriptionMeta   String? // JSON with word-level timestamps, speakers, etc.
+
+  // Relations
+  uploadedById String
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+
+  workspaceId String?
+  analysisId  String?
+
+  segments    MediaSegment[]
+
+  @@index([workspaceId])
+  @@index([analysisId])
+}
+
+model MediaSegment {
+  id          String    @id @default(uuid())
+  startTime   Float     // Start time in seconds
+  endTime     Float     // End time in seconds
+  text        String    // Transcribed text for this segment
+  speaker     String?   // Speaker identification
+  confidence  Float?    // Transcription confidence
+  isEdited    Boolean   @default(false) // User edited the transcription
+  notes       String?   // User notes for this segment
+  tags        String?   // JSON array of tags
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  mediaId     String
+  media       MediaFile @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([mediaId])
+  @@index([startTime])
 }
