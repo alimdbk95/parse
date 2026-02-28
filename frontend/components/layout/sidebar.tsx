@@ -18,6 +18,7 @@ import {
   Command,
   Layout,
   Brain,
+  FlaskConical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -426,6 +427,33 @@ export function Sidebar({ analyses = [], onNewAnalysis, onOpenSearch }: SidebarP
                   exit={{ opacity: 0 }}
                 >
                   Insights
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </Link>
+        </div>
+
+        {/* Experiment Design Link */}
+        <div className="mt-2">
+          <Link
+            href="/dashboard/experiments"
+            onClick={handleLinkClick}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              pathname.startsWith('/dashboard/experiments')
+                ? 'bg-primary/10 text-primary'
+                : 'text-foreground-secondary hover:bg-background-tertiary hover:text-foreground'
+            )}
+          >
+            <FlaskConical className="h-5 w-5 flex-shrink-0" />
+            <AnimatePresence>
+              {sidebarOpen && (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  Experiment Design
                 </motion.span>
               )}
             </AnimatePresence>

@@ -21,6 +21,7 @@ import {
   Link2,
   Loader2,
   AlertCircle,
+  Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -517,7 +518,7 @@ export default function SettingsPage() {
                   <label className="mb-1.5 block text-sm font-medium">
                     Theme
                   </label>
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3">
                     <button
                       onClick={() => setTheme('dark')}
                       className={cn(
@@ -542,7 +543,22 @@ export default function SettingsPage() {
                       <Sun className="h-4 w-4" />
                       Light
                     </button>
+                    <button
+                      onClick={() => setTheme('accessible')}
+                      className={cn(
+                        'flex items-center gap-2 rounded-lg px-4 py-2 transition-colors',
+                        theme === 'accessible'
+                          ? 'bg-primary/20 text-primary border border-primary/50'
+                          : 'bg-background-secondary hover:bg-background-tertiary'
+                      )}
+                    >
+                      <Eye className="h-4 w-4" />
+                      High Contrast
+                    </button>
                   </div>
+                  <p className="mt-2 text-xs text-foreground-tertiary">
+                    High Contrast mode provides enhanced visibility with increased color contrast for better accessibility.
+                  </p>
                 </div>
 
                 <p className="text-xs text-foreground-tertiary">

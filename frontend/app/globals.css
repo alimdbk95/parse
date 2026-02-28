@@ -4,6 +4,113 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* CSS Variables for Theming */
+:root {
+  /* Dark Theme (Default) */
+  --color-background: #0a0a0f;
+  --color-background-secondary: #12121a;
+  --color-background-tertiary: #1a1a2e;
+  --color-foreground: #ffffff;
+  --color-foreground-secondary: #dddddd;
+  --color-foreground-tertiary: #71717a;
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-primary-light: #60a5fa;
+  --color-border: #27272a;
+  --color-border-hover: #3f3f46;
+  --color-card: #18181b;
+  --color-card-hover: #1f1f23;
+  --color-accent-coral: #f97066;
+  --color-accent-teal: #47d4c1;
+  --color-accent-lime: #a3e635;
+  --color-accent-pink: #f472b6;
+  --color-accent-amber: #fbbf24;
+  --color-accent-purple: #a78bfa;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-scrollbar-track: #1a1a2e;
+  --color-scrollbar-thumb: #3f3f46;
+  --color-scrollbar-thumb-hover: #52525b;
+  --color-selection: rgba(59, 130, 246, 0.3);
+  --color-focus-ring: #3b82f6;
+}
+
+/* Light Theme */
+[data-theme="light"] {
+  --color-background: #fafafa;
+  --color-background-secondary: #f4f4f5;
+  --color-background-tertiary: #e4e4e7;
+  --color-foreground: #18181b;
+  --color-foreground-secondary: #3f3f46;
+  --color-foreground-tertiary: #71717a;
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-light: #3b82f6;
+  --color-border: #d4d4d8;
+  --color-border-hover: #a1a1aa;
+  --color-card: #ffffff;
+  --color-card-hover: #f4f4f5;
+  --color-accent-coral: #dc2626;
+  --color-accent-teal: #0d9488;
+  --color-accent-lime: #65a30d;
+  --color-accent-pink: #db2777;
+  --color-accent-amber: #d97706;
+  --color-accent-purple: #7c3aed;
+  --color-success: #16a34a;
+  --color-warning: #ca8a04;
+  --color-error: #dc2626;
+  --color-scrollbar-track: #e4e4e7;
+  --color-scrollbar-thumb: #a1a1aa;
+  --color-scrollbar-thumb-hover: #71717a;
+  --color-selection: rgba(37, 99, 235, 0.2);
+  --color-focus-ring: #2563eb;
+}
+
+/* Accessible / High Contrast Theme */
+[data-theme="accessible"] {
+  --color-background: #000000;
+  --color-background-secondary: #1a1a1a;
+  --color-background-tertiary: #2d2d2d;
+  --color-foreground: #ffffff;
+  --color-foreground-secondary: #ffffff;
+  --color-foreground-tertiary: #b3b3b3;
+  --color-primary: #00bfff;
+  --color-primary-hover: #00d4ff;
+  --color-primary-light: #40d4ff;
+  --color-border: #ffffff;
+  --color-border-hover: #00bfff;
+  --color-card: #1a1a1a;
+  --color-card-hover: #2d2d2d;
+  --color-accent-coral: #ff6b6b;
+  --color-accent-teal: #00ffcc;
+  --color-accent-lime: #b3ff00;
+  --color-accent-pink: #ff66cc;
+  --color-accent-amber: #ffcc00;
+  --color-accent-purple: #cc99ff;
+  --color-success: #00ff7f;
+  --color-warning: #ffcc00;
+  --color-error: #ff4444;
+  --color-scrollbar-track: #1a1a1a;
+  --color-scrollbar-thumb: #666666;
+  --color-scrollbar-thumb-hover: #888888;
+  --color-selection: rgba(0, 191, 255, 0.4);
+  --color-focus-ring: #00bfff;
+}
+
+/* Accessible theme enhancements */
+[data-theme="accessible"] button,
+[data-theme="accessible"] a,
+[data-theme="accessible"] [role="button"] {
+  /* Thicker borders for better visibility */
+  border-width: 2px;
+}
+
+[data-theme="accessible"] :focus-visible {
+  outline-width: 3px;
+  outline-offset: 3px;
+}
+
 * {
   box-sizing: border-box;
   padding: 0;
@@ -22,12 +129,13 @@ html {
 }
 
 body {
-  background-color: #0a0a0f;
-  color: #ffffff;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
   font-family: 'Inter', system-ui, sans-serif;
   min-height: 100vh;
   min-height: -webkit-fill-available;
   min-height: 100dvh;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Safe area insets for iOS notch/home indicator */
@@ -80,66 +188,52 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a1a2e;
+  background: var(--color-scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
+  background: var(--color-scrollbar-thumb);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
+  background: var(--color-scrollbar-thumb-hover);
 }
 
 /* Selection */
 ::selection {
-  background-color: rgba(59, 130, 246, 0.3);
+  background-color: var(--color-selection);
 }
 
 /* Focus outline */
 :focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
 
-/* Smooth transitions */
+/* Smooth transitions for theme switching */
 .transition-theme {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-/* Light theme overrides */
-.light {
-  background-color: #fafafa;
-  color: #18181b;
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-.light .bg-background {
-  background-color: #fafafa;
-}
-
-.light .bg-background-secondary {
-  background-color: #f4f4f5;
-}
-
-.light .bg-background-tertiary {
-  background-color: #e4e4e7;
-}
-
-.light .bg-card {
-  background-color: #ffffff;
-}
-
-.light .text-foreground {
-  color: #18181b;
-}
-
-.light .text-foreground-secondary {
-  color: #52525b;
-}
-
-.light .border-border {
-  border-color: #e4e4e7;
+/* High contrast media query support */
+@media (prefers-contrast: more) {
+  :root {
+    --color-border: #ffffff;
+    --color-foreground-tertiary: #b3b3b3;
+  }
 }
 
 /* Animations */

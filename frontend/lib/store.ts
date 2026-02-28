@@ -74,7 +74,7 @@ interface AppState {
 
   // UI State
   sidebarOpen: boolean;
-  theme: 'dark' | 'light';
+  theme: 'dark' | 'light' | 'accessible';
   branding: Branding;
   isMobile: boolean;
 
@@ -102,7 +102,7 @@ interface AppState {
 
   setSidebarOpen: (open: boolean) => void;
   toggleSidebar: () => void;
-  setTheme: (theme: 'dark' | 'light') => void;
+  setTheme: (theme: 'dark' | 'light' | 'accessible') => void;
   setBranding: (branding: Partial<Branding>) => void;
   setIsMobile: (isMobile: boolean) => void;
 }
