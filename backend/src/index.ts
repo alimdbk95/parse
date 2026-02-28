@@ -26,6 +26,8 @@ import knowledgeGraphRoutes from './routes/knowledgeGraph.js';
 import dataTableRoutes from './routes/dataTables.js';
 import timelineRoutes from './routes/timelines.js';
 import mediaRoutes from './routes/media.js';
+import parameterRoutes from './routes/parameters.js';
+import experimentRoutes from './routes/experiments.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -84,6 +86,8 @@ app.use('/api/knowledge-graphs', knowledgeGraphRoutes);
 app.use('/api/data-tables', dataTableRoutes);
 app.use('/api/timelines', timelineRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/parameters', parameterRoutes);
+app.use('/api/experiments', experimentRoutes);
 
 // Make io globally available for notifications
 (global as any).io = io;

@@ -1575,6 +1575,400 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // ============ EXPERIMENTS (Design of Experiments) ============
+
+  async getExperiments(options?: { workspaceId?: string; status?: string; type?: string }) {
+    const params = new URLSearchParams();
+    if (options?.workspaceId) params.set('workspaceId', options.workspaceId);
+    if (options?.status) params.set('status', options.status);
+    if (options?.type) params.set('type', options.type);
+    const queryString = params.toString();
+
+    return this.request<{
+      experiments: Array<{
+        id: string;
+        name: string;
+        description?: string;
+        hypothesis?: string;
+        type: 'ab_test' | 'full_factorial' | 'parameter_matrix' | 'custom';
+        status: 'draft' | 'running' | 'paused' | 'completed';
+        confidenceLevel: number;
+        startedAt?: string;
+        completedAt?: string;
+        createdAt: string;
+        updatedAt: string;
+        createdBy: { id: string; name: string; avatar?: string };
+        _count: { factors: number; variations: number; runs: number; results: number; metrics: number };
+      }>;
+    }>(`/experiments${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async createExperiment(data: {
+    name: string;
+    description?: string;
+    hypothesis?: string;
+    type: 'ab_test' | 'full_factorial' | 'parameter_matrix' | 'custom';
+    confidenceLevel?: number;
+    workspaceId?: string;
+    analysisId?: string;
+  }) {
+    return this.request<{ experiment: any }>('/experiments', {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async getExperiment(id: string) {
+    return this.request<{
+      experiment: {
+        id: string;
+        name: string;
+        description?: string;
+        hypothesis?: string;
+        type: string;
+        status: string;
+        confidenceLevel: number;
+        startedAt?: string;
+        completedAt?: string;
+        conclusion?: string;
+        resultSummary?: string;
+        createdAt: string;
+        updatedAt: string;
+        createdBy: { id: string; name: string; avatar?: string };
+        factors: Array<{
+          id: string;
+          name: string;
+          type: string;
+          unit?: string;
+          description?: string;
+          levels?: string;
+          levelValues: Array<{ id: string; value: string; label?: string; isControl: boolean }>;
+        }>;
+        variations: Array<{
+          id: string;
+          name: string;
+          description?: string;
+          isControl: boolean;
+          factorValues: string;
+          trafficWeight?: number;
+        }>;
+        metrics: Array<{
+          id: string;
+          name: string;
+          type: string;
+          unit?: string;
+          isPrimary: boolean;
+          higherIsBetter: boolean;
+          baselineValue?: number;
+          targetValue?: number;
+        }>;
+        runs: Array<{
+          id: string;
+          runNumber: number;
+          status: string;
+          startedAt?: string;
+          completedAt?: string;
+          notes?: string;
+          variation: { id: string; name: string };
+        }>;
+        results: Array<{
+          id: string;
+          value: number;
+          sampleSize: number;
+          standardError?: number;
+          measuredAt: string;
+          variation: { id: string; name: string };
+          metric: { id: string; name: string; unit?: string };
+        }>;
+      };
+    }>(`/experiments/${id}`);
+  }
+
+  async updateExperiment(id: string, data: {
+    name?: string;
+    description?: string;
+    hypothesis?: string;
+    confidenceLevel?: number;
+    conclusion?: string;
+  }) {
+    return this.request<{ experiment: any }>(`/experiments/${id}`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async deleteExperiment(id: string) {
+    return this.request<{ message: string }>(`/experiments/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async startExperiment(id: string) {
+    return this.request<{ experiment: any }>(`/experiments/${id}/start`, {
+      method: 'POST',
+    });
+  }
+
+  async pauseExperiment(id: string) {
+    return this.request<{ experiment: any }>(`/experiments/${id}/pause`, {
+      method: 'POST',
+    });
+  }
+
+  async completeExperiment(id: string, conclusion?: string) {
+    return this.request<{ experiment: any; summary: any }>(`/experiments/${id}/complete`, {
+      method: 'POST',
+      body: { conclusion },
+    });
+  }
+
+  // Factors
+  async addExperimentFactor(experimentId: string, data: {
+    name: string;
+    type?: string;
+    unit?: string;
+    description?: string;
+    minValue?: number;
+    maxValue?: number;
+    levels?: string[];
+  }) {
+    return this.request<{ factor: any }>(`/experiments/${experimentId}/factors`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async updateExperimentFactor(experimentId: string, factorId: string, data: {
+    name?: string;
+    type?: string;
+    unit?: string;
+    description?: string;
+    levels?: string[];
+  }) {
+    return this.request<{ factor: any }>(`/experiments/${experimentId}/factors/${factorId}`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async deleteExperimentFactor(experimentId: string, factorId: string) {
+    return this.request<{ message: string }>(`/experiments/${experimentId}/factors/${factorId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addFactorLevel(experimentId: string, factorId: string, data: {
+    value: string;
+    label?: string;
+    isControl?: boolean;
+  }) {
+    return this.request<{ level: any }>(`/experiments/${experimentId}/factors/${factorId}/levels`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  // Variations
+  async addExperimentVariation(experimentId: string, data: {
+    name: string;
+    description?: string;
+    isControl?: boolean;
+    factorValues?: Record<string, string>;
+    trafficWeight?: number;
+  }) {
+    return this.request<{ variation: any }>(`/experiments/${experimentId}/variations`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async generateExperimentVariations(experimentId: string) {
+    return this.request<{ variations: any[]; count: number }>(`/experiments/${experimentId}/variations/generate`, {
+      method: 'POST',
+    });
+  }
+
+  async updateExperimentVariation(experimentId: string, variationId: string, data: {
+    name?: string;
+    description?: string;
+    isControl?: boolean;
+    trafficWeight?: number;
+  }) {
+    return this.request<{ variation: any }>(`/experiments/${experimentId}/variations/${variationId}`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async deleteExperimentVariation(experimentId: string, variationId: string) {
+    return this.request<{ message: string }>(`/experiments/${experimentId}/variations/${variationId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Metrics
+  async addExperimentMetric(experimentId: string, data: {
+    name: string;
+    type?: string;
+    unit?: string;
+    isPrimary?: boolean;
+    higherIsBetter?: boolean;
+    baselineValue?: number;
+    targetValue?: number;
+  }) {
+    return this.request<{ metric: any }>(`/experiments/${experimentId}/metrics`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async updateExperimentMetric(experimentId: string, metricId: string, data: {
+    name?: string;
+    type?: string;
+    unit?: string;
+    isPrimary?: boolean;
+    higherIsBetter?: boolean;
+    baselineValue?: number;
+    targetValue?: number;
+  }) {
+    return this.request<{ metric: any }>(`/experiments/${experimentId}/metrics/${metricId}`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async deleteExperimentMetric(experimentId: string, metricId: string) {
+    return this.request<{ message: string }>(`/experiments/${experimentId}/metrics/${metricId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Runs
+  async createExperimentRun(experimentId: string, variationId: string, data?: {
+    inputParams?: Record<string, any>;
+    notes?: string;
+  }) {
+    return this.request<{ run: any }>(`/experiments/${experimentId}/runs`, {
+      method: 'POST',
+      body: { variationId, ...data },
+    });
+  }
+
+  async updateExperimentRun(experimentId: string, runId: string, data: {
+    status?: string;
+    notes?: string;
+    startedAt?: string;
+    completedAt?: string;
+    duration?: number;
+  }) {
+    return this.request<{ run: any }>(`/experiments/${experimentId}/runs/${runId}`, {
+      method: 'PATCH',
+      body: data,
+    });
+  }
+
+  async completeExperimentRun(experimentId: string, runId: string, data: {
+    results: Array<{ metricId: string; value: number; rawValue?: string; sampleSize?: number; standardError?: number }>;
+    notes?: string;
+  }) {
+    return this.request<{ run: any; results: any[] }>(`/experiments/${experimentId}/runs/${runId}/complete`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  // Results
+  async recordExperimentResult(experimentId: string, data: {
+    variationId: string;
+    metricId: string;
+    value: number;
+    rawValue?: string;
+    sampleSize?: number;
+    standardError?: number;
+    runId?: string;
+  }) {
+    return this.request<{ result: any }>(`/experiments/${experimentId}/results`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async recordExperimentResultsBulk(experimentId: string, results: Array<{
+    variationId: string;
+    metricId: string;
+    value: number;
+    rawValue?: string;
+    sampleSize?: number;
+    standardError?: number;
+    runId?: string;
+  }>) {
+    return this.request<{ results: any[]; count: number }>(`/experiments/${experimentId}/results/bulk`, {
+      method: 'POST',
+      body: { results },
+    });
+  }
+
+  async deleteExperimentResult(experimentId: string, resultId: string) {
+    return this.request<{ message: string }>(`/experiments/${experimentId}/results/${resultId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Statistics
+  async getExperimentStatistics(experimentId: string) {
+    return this.request<{
+      descriptive: Record<string, Record<string, {
+        mean: number;
+        median: number;
+        standardDeviation: number;
+        variance: number;
+        sampleSize: number;
+        min: number;
+        max: number;
+        standardError: number;
+        confidenceInterval: { lower: number; upper: number };
+      }>>;
+      hypothesisTests: Record<string, {
+        testType: string;
+        statistic: number;
+        pValue: number;
+        degreesOfFreedom?: number;
+        significant: boolean;
+        effectSize?: number;
+        interpretation: string;
+        confidenceLevel: number;
+        effectSizeInterpretation: string;
+        variations: Array<{ id: string; name: string; isControl: boolean }>;
+      }>;
+      powerAnalysis?: {
+        requiredSampleSize: number;
+        achievedPower: number;
+        effectSize: number;
+        alpha: number;
+      };
+      totalResults: number;
+      variationCount: number;
+      metricCount: number;
+    }>(`/experiments/${experimentId}/statistics`);
+  }
+
+  async calculateExperimentPower(experimentId: string, data: {
+    effectSize?: number;
+    desiredPower?: number;
+    alpha?: number;
+  }) {
+    return this.request<{
+      requiredSampleSize: number;
+      achievedPower: number;
+      effectSize: number;
+      alpha: number;
+      desiredPower: number;
+    }>(`/experiments/${experimentId}/statistics/power`, {
+      method: 'POST',
+      body: data,
+    });
+  }
 }
 
 export const api = new ApiClient();

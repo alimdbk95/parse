@@ -47,6 +47,7 @@ model User {
   dataTables    DataTable[]
   timelines     Timeline[]
   mediaFiles    MediaFile[]
+  experiments   Experiment[]
 }
 
 model Workspace {
@@ -126,6 +127,7 @@ model Analysis {
   charts      Chart[]
   semanticInsights SemanticInsight[]
   versions    AnalysisVersion[]
+  parameters  AnalysisParameter[]
 }
 
 model AnalysisDocument {
@@ -139,6 +141,23 @@ model AnalysisDocument {
   document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@unique([analysisId, documentId])
+}
+
+// Analysis Parameters - User-defined key-value parameters for analyses
+model AnalysisParameter {
+  id          String    @id @default(uuid())
+  key         String    // Parameter name
+  value       String    // Parameter value
+  comment     String?   // Google Sheets-style note/comment
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  analysisId  String
+  analysis    Analysis  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@unique([analysisId, key])
+  @@index([analysisId])
 }
 
 model Message {
@@ -650,4 +669,160 @@ model MediaSegment {
 
   @@index([mediaId])
   @@index([startTime])
+}
+
+// Design of Experiments (DoE) - Scientific experiment management
+model Experiment {
+  id              String    @id @default(uuid())
+  name            String
+  description     String?
+  hypothesis      String?   // H0/H1 statement
+  type            String    // 'ab_test', 'full_factorial', 'parameter_matrix', 'custom'
+  status          String    @default("draft") // 'draft', 'running', 'paused', 'completed'
+  confidenceLevel Float     @default(0.95)
+  minimumSampleSize Int?
+  powerAnalysis   String?   // JSON
+  startedAt       DateTime?
+  completedAt     DateTime?
+  resultSummary   String?   // JSON: p-values, effect sizes, winner
+  conclusion      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  createdById     String
+  createdBy       User      @relation(fields: [createdById], references: [id])
+  workspaceId     String?
+  analysisId      String?
+
+  factors         ExperimentFactor[]
+  variations      ExperimentVariation[]
+  runs            ExperimentRun[]
+  results         ExperimentResult[]
+  metrics         ExperimentMetric[]
+
+  @@index([workspaceId])
+  @@index([status])
+  @@index([type])
+}
+
+model ExperimentFactor {
+  id            String    @id @default(uuid())
+  name          String
+  type          String    @default("categorical") // 'categorical', 'numeric', 'boolean'
+  unit          String?
+  description   String?
+  minValue      Float?
+  maxValue      Float?
+  levels        String?   // JSON: ["low", "high"]
+  position      Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  experimentId  String
+  experiment    Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  levelValues   FactorLevel[]
+
+  @@index([experimentId])
+}
+
+model FactorLevel {
+  id            String    @id @default(uuid())
+  value         String
+  label         String?
+  isControl     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  factorId      String
+  factor        ExperimentFactor @relation(fields: [factorId], references: [id], onDelete: Cascade)
+
+  @@index([factorId])
+}
+
+model ExperimentVariation {
+  id            String    @id @default(uuid())
+  name          String
+  description   String?
+  isControl     Boolean   @default(false)
+  factorValues  String    // JSON: factor-level assignments
+  trafficWeight Float?
+  position      Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  experimentId  String
+  experiment    Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  runs          ExperimentRun[]
+  results       ExperimentResult[]
+
+  @@index([experimentId])
+}
+
+model ExperimentRun {
+  id            String    @id @default(uuid())
+  runNumber     Int
+  status        String    @default("pending") // 'pending', 'running', 'completed', 'failed'
+  inputParams   String?   // JSON: actual input values used
+  startedAt     DateTime?
+  completedAt   DateTime?
+  duration      Float?    // Duration in seconds
+  notes         String?
+  metadata      String?   // JSON: additional run-specific data
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  experimentId  String
+  experiment    Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variationId   String
+  variation     ExperimentVariation @relation(fields: [variationId], references: [id], onDelete: Cascade)
+  results       ExperimentResult[]
+
+  @@index([experimentId])
+  @@index([variationId])
+  @@index([status])
+}
+
+model ExperimentMetric {
+  id             String    @id @default(uuid())
+  name           String
+  type           String    @default("numeric") // 'numeric', 'percentage', 'boolean', 'categorical'
+  unit           String?
+  isPrimary      Boolean   @default(false)
+  higherIsBetter Boolean   @default(true)
+  baselineValue  Float?
+  targetValue    Float?
+  position       Int       @default(0)
+  createdAt      DateTime  @default(now())
+
+  // Relations
+  experimentId   String
+  experiment     Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  results        ExperimentResult[]
+
+  @@index([experimentId])
+}
+
+model ExperimentResult {
+  id            String    @id @default(uuid())
+  value         Float
+  rawValue      String?
+  sampleSize    Int       @default(1)
+  standardError Float?
+  variance      Float?
+  measuredAt    DateTime  @default(now())
+
+  // Relations
+  experimentId  String
+  experiment    Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variationId   String
+  variation     ExperimentVariation @relation(fields: [variationId], references: [id], onDelete: Cascade)
+  metricId      String
+  metric        ExperimentMetric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  runId         String?
+  run           ExperimentRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([experimentId])
+  @@index([variationId])
+  @@index([metricId])
 }
