@@ -12,6 +12,7 @@ interface AnalysisContext {
     role: string;
     content: string;
   }[];
+  outputFormat?: string; // 'generic', 'scientific', 'statistical', 'technical', 'business', 'academic'
 }
 
 interface ChartSuggestion {
@@ -25,6 +26,74 @@ interface AIResponse {
   text: string;
   chart?: ChartSuggestion;
 }
+
+// Output format instructions for different analysis modes
+const OUTPUT_FORMAT_INSTRUCTIONS: Record<string, string> = {
+  generic: `
+## OUTPUT STYLE: GENERAL PURPOSE
+- Use clear, accessible language suitable for any audience
+- Balance technical detail with readability
+- Focus on practical insights and actionable findings
+- Use bullet points and tables for clarity`,
+
+  scientific: `
+## OUTPUT STYLE: SCIENTIFIC RESEARCH
+- Follow scientific writing conventions (Introduction, Methods, Results, Discussion)
+- Use precise technical terminology appropriate for peer review
+- Include methodology details and statistical significance (p-values, confidence intervals)
+- Reference specific data points with proper citations format
+- Distinguish between correlation and causation
+- Note limitations and potential confounding variables
+- Use passive voice where appropriate for objectivity
+- Format findings suitable for academic publication`,
+
+  statistical: `
+## OUTPUT STYLE: STATISTICAL ANALYSIS
+- Lead with statistical measures: mean, median, mode, standard deviation, variance
+- Include confidence intervals (95% CI) and margins of error
+- Report effect sizes (Cohen's d, r², eta-squared) alongside p-values
+- Use proper statistical notation (μ, σ, n, df, t, F, χ²)
+- Specify test types used (t-test, ANOVA, regression, chi-square)
+- Report assumptions and whether they were met
+- Include power analysis considerations where relevant
+- Present data in statistical tables following APA/journal format
+- Distinguish between descriptive and inferential statistics`,
+
+  technical: `
+## OUTPUT STYLE: TECHNICAL DOCUMENTATION
+- Use precise technical terminology without simplification
+- Include specific metrics, parameters, and specifications
+- Structure information with clear hierarchies (sections, subsections)
+- Provide exact values, formulas, and calculations
+- Reference specific methodologies, algorithms, or frameworks
+- Include error margins and precision levels
+- Format code snippets, configurations, and technical specs properly
+- Document assumptions, constraints, and edge cases`,
+
+  business: `
+## OUTPUT STYLE: BUSINESS INTELLIGENCE
+- Lead with executive summary and key business impacts
+- Focus on ROI, revenue, cost, and growth metrics
+- Use KPIs and business-relevant benchmarks
+- Present findings in terms of business outcomes
+- Include actionable recommendations with expected impact
+- Use comparison tables for competitive analysis
+- Highlight risks and opportunities
+- Format for stakeholder presentations (clear headlines, bullet points)
+- Include timeline considerations and resource implications`,
+
+  academic: `
+## OUTPUT STYLE: ACADEMIC RESEARCH
+- Follow scholarly writing conventions
+- Include proper literature context (though you can't cite actual papers, frame findings academically)
+- Use formal academic tone and structure
+- Discuss theoretical implications
+- Address research questions systematically
+- Note gaps in analysis and future research directions
+- Use hedged language appropriately ("suggests," "indicates," "may")
+- Structure arguments with clear thesis, evidence, and conclusions
+- Format suitable for thesis or dissertation chapters`,
+};
 
 class ClaudeAIService {
   private client: Anthropic | null = null;
@@ -149,7 +218,13 @@ class ClaudeAIService {
         content: msg.content,
       }));
 
+      // Get output format instructions if specified
+      const outputFormatInstructions = context.outputFormat
+        ? OUTPUT_FORMAT_INSTRUCTIONS[context.outputFormat] || OUTPUT_FORMAT_INSTRUCTIONS.generic
+        : '';
+
       const systemPrompt = `You are Parse, an advanced AI research assistant specialized in scientific document analysis, quantitative data extraction, and evidence-based visualization. You help researchers, analysts, and professionals extract actionable insights from complex documents.
+${outputFormatInstructions}
 
 ## CORE PRINCIPLES
 

@@ -209,7 +209,7 @@ class ApiClient {
     });
   }
 
-  async updateAnalysis(id: string, data: { title?: string; description?: string }) {
+  async updateAnalysis(id: string, data: { title?: string; description?: string; outputFormat?: string }) {
     return this.request<{ analysis: any }>(`/analyses/${id}`, {
       method: 'PATCH',
       body: data,

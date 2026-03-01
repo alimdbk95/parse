@@ -115,6 +115,9 @@ model Analysis {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  // Output format preference for AI responses
+  outputFormat String?   // 'generic', 'scientific', 'statistical', 'technical', 'business', 'academic'
+
   // Relations
   createdById String
   createdBy   User      @relation(fields: [createdById], references: [id])

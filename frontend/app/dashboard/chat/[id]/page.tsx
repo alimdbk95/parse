@@ -7,6 +7,7 @@ import { MessageList } from '@/components/chat/message-list';
 import { ChatInput } from '@/components/chat/chat-input';
 import { CommentPanel } from '@/components/chat/comment-panel';
 import { VersionHistory } from '@/components/analysis/version-history';
+import { OutputFormatModal, OutputFormat } from '@/components/analysis/output-format-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
@@ -56,8 +57,16 @@ export default function ChatPage() {
   // Version history state
   const [showVersionHistory, setShowVersionHistory] = useState(false);
 
+  // Output format state
+  const [showOutputFormatModal, setShowOutputFormatModal] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+
   // Check if user can edit (admin or editor)
   const canEdit = userRole === 'admin' || userRole === 'editor';
+
+  // Check if this is the first user message (no previous user messages and no output format set)
+  const isFirstUserMessage = !analysis?.outputFormat &&
+    !messages.some((m) => m.role === 'user');
 
   useEffect(() => {
     const fetchAnalysis = async () => {
@@ -116,6 +125,33 @@ export default function ChatPage() {
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || sending) return;
 
+    // Show output format modal on first user message if not already set
+    if (isFirstUserMessage) {
+      setPendingMessage(content);
+      setShowOutputFormatModal(true);
+      return;
+    }
+
+    await sendMessageToAPI(content);
+  };
+
+  const handleOutputFormatSelect = async (format: OutputFormat) => {
+    // Save the output format to the analysis
+    try {
+      await api.updateAnalysis(analysisId, { outputFormat: format });
+      setAnalysis((prev: any) => ({ ...prev, outputFormat: format }));
+    } catch (error) {
+      console.error('Failed to save output format:', error);
+    }
+
+    // Send the pending message
+    if (pendingMessage) {
+      await sendMessageToAPI(pendingMessage);
+      setPendingMessage(null);
+    }
+  };
+
+  const sendMessageToAPI = async (content: string) => {
     // Optimistically add user message
     const tempUserMessage = {
       id: `temp-${Date.now()}`,
@@ -755,6 +791,17 @@ export default function ChatPage() {
         isOpen={showVersionHistory}
         onClose={() => setShowVersionHistory(false)}
         onVersionRestored={handleVersionRestored}
+      />
+
+      {/* Output Format Selection Modal */}
+      <OutputFormatModal
+        isOpen={showOutputFormatModal}
+        onClose={() => {
+          setShowOutputFormatModal(false);
+          setPendingMessage(null);
+        }}
+        onSelect={handleOutputFormatSelect}
+        currentFormat={analysis?.outputFormat}
       />
     </div>
   );

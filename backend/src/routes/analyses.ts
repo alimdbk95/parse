@@ -250,6 +250,7 @@ router.post('/:id/messages', authenticate, async (req: AuthRequest, res) => {
         role: m.role,
         content: m.content,
       })),
+      outputFormat: analysis.outputFormat || undefined,
     });
 
     // Create assistant message
@@ -418,7 +419,7 @@ router.delete('/:id/documents/:documentId', authenticate, async (req: AuthReques
 // Update analysis
 router.patch('/:id', authenticate, async (req: AuthRequest, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, outputFormat } = req.body;
 
     const analysis = await prisma.analysis.updateMany({
       where: {
@@ -428,6 +429,7 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res) => {
       data: {
         ...(title && { title }),
         ...(description !== undefined && { description }),
+        ...(outputFormat && { outputFormat }),
       },
     });
 
