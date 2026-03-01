@@ -558,18 +558,84 @@ class ApiClient {
   }
 
   // Search
-  async search(query: string) {
+  async search(
+    query: string,
+    options?: {
+      types?: string[];
+      limit?: number;
+      offset?: number;
+      dateFrom?: Date;
+      dateTo?: Date;
+      workspaceId?: string;
+      includeContent?: boolean;
+    }
+  ) {
+    const params = new URLSearchParams({ q: query });
+    if (options?.types?.length) params.set('types', options.types.join(','));
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.offset) params.set('offset', String(options.offset));
+    if (options?.dateFrom) params.set('dateFrom', options.dateFrom.toISOString());
+    if (options?.dateTo) params.set('dateTo', options.dateTo.toISOString());
+    if (options?.workspaceId) params.set('workspaceId', options.workspaceId);
+    if (options?.includeContent !== undefined) params.set('includeContent', String(options.includeContent));
+
     return this.request<{
       results: Array<{
         id: string;
-        type: 'analysis' | 'document' | 'repository';
+        type: 'analysis' | 'document' | 'repository' | 'experiment' | 'chart' | 'template';
         title: string;
         subtitle?: string;
-        icon: 'conversation' | 'document' | 'folder';
+        content?: string;
+        highlights?: Array<{ field: string; snippet: string }>;
+        score: number;
         url: string;
         updatedAt?: string;
+        createdAt?: string;
       }>;
-    }>(`/search?q=${encodeURIComponent(query)}`);
+      totalCount: number;
+      fromCache: boolean;
+      duration: number;
+      searchQueryId: string;
+    }>(`/search?${params.toString()}`);
+  }
+
+  async getSearchSuggestions(query: string, limit?: number) {
+    const params = new URLSearchParams({ q: query });
+    if (limit) params.set('limit', String(limit));
+
+    return this.request<{
+      suggestions: Array<{
+        text: string;
+        type: 'recent' | 'popular' | 'autocomplete';
+        count?: number;
+      }>;
+    }>(`/search/suggestions?${params.toString()}`);
+  }
+
+  async recordSearchClick(searchQueryId: string, resultId: string, resultType: string) {
+    return this.request<{ success: boolean }>('/search/click', {
+      method: 'POST',
+      body: { searchQueryId, resultId, resultType },
+    });
+  }
+
+  async getSearchAnalytics(days?: number) {
+    const params = new URLSearchParams();
+    if (days) params.set('days', String(days));
+    const queryString = params.toString();
+
+    return this.request<{
+      analytics: {
+        totalSearches: number;
+        uniqueQueries: number;
+        averageResultCount: number;
+        clickThroughRate: number;
+        topQueries: Array<{ query: string; count: number; clickRate: number }>;
+        searchesByDay: Array<{ date: string; count: number }>;
+        resultTypeDistribution: Record<string, number>;
+        noResultQueries: Array<{ query: string; count: number }>;
+      };
+    }>(`/search/analytics${queryString ? `?${queryString}` : ''}`);
   }
 
   // Notifications

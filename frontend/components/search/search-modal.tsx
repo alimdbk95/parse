@@ -12,18 +12,24 @@ import {
   Clock,
   ArrowRight,
   Command,
+  BarChart2,
+  FlaskConical,
+  Layout,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 
 interface SearchResult {
   id: string;
-  type: 'analysis' | 'document' | 'repository';
+  type: 'analysis' | 'document' | 'repository' | 'experiment' | 'chart' | 'template';
   title: string;
   subtitle?: string;
-  icon: 'conversation' | 'document' | 'folder';
+  content?: string;
+  highlights?: Array<{ field: string; snippet: string }>;
+  score?: number;
   url: string;
   updatedAt?: string;
+  createdAt?: string;
 }
 
 interface SearchModalProps {
@@ -39,6 +45,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [recentItems, setRecentItems] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [searchQueryId, setSearchQueryId] = useState<string | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Focus input when modal opens
@@ -86,17 +93,20 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const performSearch = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
       setResults([]);
+      setSearchQueryId(null);
       return;
     }
 
     setLoading(true);
     try {
-      const { results: searchResults } = await api.search(searchQuery);
-      setResults(searchResults);
+      const response = await api.search(searchQuery);
+      setResults(response.results);
+      setSearchQueryId(response.searchQueryId);
       setSelectedIndex(0);
     } catch (error) {
       console.error('Search failed:', error);
       setResults([]);
+      setSearchQueryId(null);
     } finally {
       setLoading(false);
     }
@@ -146,21 +156,35 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   };
 
   // Handle selection
-  const handleSelect = (item: SearchResult) => {
+  const handleSelect = async (item: SearchResult) => {
+    // Track the click for analytics
+    if (searchQueryId) {
+      try {
+        await api.recordSearchClick(searchQueryId, item.id, item.type);
+      } catch (error) {
+        console.error('Failed to record search click:', error);
+      }
+    }
     saveToRecent(item);
     onClose();
     router.push(item.url);
   };
 
-  // Get icon component
-  const getIcon = (type: SearchResult['icon']) => {
+  // Get icon component based on result type
+  const getIcon = (type: SearchResult['type']) => {
     switch (type) {
-      case 'conversation':
+      case 'analysis':
         return MessageSquare;
       case 'document':
         return FileText;
-      case 'folder':
+      case 'repository':
         return Folder;
+      case 'experiment':
+        return FlaskConical;
+      case 'chart':
+        return BarChart2;
+      case 'template':
+        return Layout;
       default:
         return FileText;
     }
@@ -235,7 +259,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       </div>
                     )}
                     {displayItems.map((item, index) => {
-                      const Icon = getIcon(item.icon);
+                      const Icon = getIcon(item.type);
                       return (
                         <button
                           key={item.id}

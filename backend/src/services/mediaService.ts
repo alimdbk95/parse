@@ -266,16 +266,14 @@ export async function searchTranscription(
   mediaId: string,
   query: string
 ): Promise<{ segments: any[]; matches: number }> {
-  const segments = await prisma.mediaSegment.findMany({
-    where: {
-      mediaId,
-      text: {
-        contains: query,
-        mode: 'insensitive',
-      },
-    },
+  // Get all segments and filter in memory for case-insensitive search (SQLite compatibility)
+  const allSegments = await prisma.mediaSegment.findMany({
+    where: { mediaId },
     orderBy: { startTime: 'asc' },
   });
+
+  const lowerQuery = query.toLowerCase();
+  const segments = allSegments.filter((s) => s.text.toLowerCase().includes(lowerQuery));
 
   return {
     segments,

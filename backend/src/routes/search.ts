@@ -1,147 +1,99 @@
-import express from 'express';
-import { prisma } from '../index.js';
+import express, { Response } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth.js';
+import {
+  enhancedSearch,
+  recordSearchClick,
+  getSearchAnalytics,
+  getSearchSuggestions,
+  SearchOptions,
+} from '../services/enhancedSearchService.js';
 
 const router = express.Router();
 
-interface SearchResult {
-  id: string;
-  type: 'analysis' | 'document' | 'repository';
-  title: string;
-  subtitle?: string;
-  icon: 'conversation' | 'document' | 'folder';
-  url: string;
-  updatedAt?: string;
-}
-
-// Global search
-router.get('/', authenticate, async (req: AuthRequest, res) => {
+// Enhanced global search
+router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { q } = req.query;
-    const query = (q as string)?.toLowerCase() || '';
+    const { q, types, limit, offset, dateFrom, dateTo, workspaceId, includeContent } = req.query;
+    const query = (q as string) || '';
 
     if (!query || query.length < 2) {
-      return res.json({ results: [] });
+      return res.json({ results: [], totalCount: 0, fromCache: false, duration: 0 });
     }
 
     const userId = req.user!.id;
 
-    // Get user's workspace IDs
-    const memberships = await prisma.workspaceMember.findMany({
-      where: { userId },
-      select: { workspaceId: true },
-    });
-    const workspaceIds = memberships.map((m) => m.workspaceId);
+    const options: SearchOptions = {
+      types: types ? (types as string).split(',') : undefined,
+      limit: limit ? parseInt(limit as string, 10) : 20,
+      offset: offset ? parseInt(offset as string, 10) : 0,
+      dateFrom: dateFrom ? new Date(dateFrom as string) : undefined,
+      dateTo: dateTo ? new Date(dateTo as string) : undefined,
+      workspaceId: workspaceId as string | undefined,
+      includeContent: includeContent !== 'false',
+    };
 
-    // Search analyses
-    const analyses = await prisma.analysis.findMany({
-      where: {
-        OR: [
-          { createdById: userId },
-          { workspaceId: { in: workspaceIds } },
-        ],
-        title: {
-          contains: query,
-          mode: 'insensitive',
-        },
-      },
-      select: {
-        id: true,
-        title: true,
-        updatedAt: true,
-        messages: {
-          take: 1,
-          orderBy: { createdAt: 'desc' },
-          select: { content: true },
-        },
-      },
-      take: 5,
-      orderBy: { updatedAt: 'desc' },
-    });
+    const result = await enhancedSearch(userId, query, options);
 
-    // Search documents
-    const documents = await prisma.document.findMany({
-      where: {
-        OR: [
-          { uploadedById: userId },
-          { workspaceId: { in: workspaceIds } },
-        ],
-        name: {
-          contains: query,
-          mode: 'insensitive',
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        type: true,
-        updatedAt: true,
-      },
-      take: 5,
-      orderBy: { updatedAt: 'desc' },
-    });
-
-    // Search repositories
-    const repositories = await prisma.repository.findMany({
-      where: {
-        ownerId: userId,
-        OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { description: { contains: query, mode: 'insensitive' } },
-        ],
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        color: true,
-        updatedAt: true,
-      },
-      take: 5,
-      orderBy: { updatedAt: 'desc' },
-    });
-
-    // Format results
-    const results: SearchResult[] = [
-      ...analyses.map((a) => ({
-        id: a.id,
-        type: 'analysis' as const,
-        title: a.title,
-        subtitle: a.messages[0]?.content?.slice(0, 60) || 'No messages yet',
-        icon: 'conversation' as const,
-        url: `/dashboard/chat/${a.id}`,
-        updatedAt: a.updatedAt.toISOString(),
-      })),
-      ...documents.map((d) => ({
-        id: d.id,
-        type: 'document' as const,
-        title: d.name,
-        subtitle: d.type,
-        icon: 'document' as const,
-        url: `/dashboard/documents?highlight=${d.id}`,
-        updatedAt: d.updatedAt.toISOString(),
-      })),
-      ...repositories.map((r) => ({
-        id: r.id,
-        type: 'repository' as const,
-        title: r.name,
-        subtitle: r.description || 'Repository',
-        icon: 'folder' as const,
-        url: `/dashboard/repositories/${r.id}`,
-        updatedAt: r.updatedAt.toISOString(),
-      })),
-    ];
-
-    // Sort by most recent
-    results.sort((a, b) => {
-      if (!a.updatedAt || !b.updatedAt) return 0;
-      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-    });
-
-    res.json({ results: results.slice(0, 10) });
+    res.json(result);
   } catch (error) {
     console.error('Search error:', error);
     res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// Record search result click
+router.post('/click', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { searchQueryId, resultId, resultType } = req.body;
+
+    if (!searchQueryId || !resultId || !resultType) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    await recordSearchClick(searchQueryId, resultId, resultType);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Record click error:', error);
+    res.status(500).json({ error: 'Failed to record click' });
+  }
+});
+
+// Get search suggestions (autocomplete)
+router.get('/suggestions', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { q, limit } = req.query;
+    const query = (q as string) || '';
+    const userId = req.user!.id;
+
+    const suggestions = await getSearchSuggestions(
+      userId,
+      query,
+      limit ? parseInt(limit as string, 10) : 5
+    );
+
+    res.json({ suggestions });
+  } catch (error) {
+    console.error('Suggestions error:', error);
+    res.status(500).json({ error: 'Failed to get suggestions' });
+  }
+});
+
+// Get search analytics
+router.get('/analytics', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { days } = req.query;
+    const userId = req.user!.id;
+
+    const analytics = await getSearchAnalytics(
+      userId,
+      days ? parseInt(days as string, 10) : 30
+    );
+
+    res.json({ analytics });
+  } catch (error) {
+    console.error('Analytics error:', error);
+    res.status(500).json({ error: 'Failed to get analytics' });
   }
 });
 

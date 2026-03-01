@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -825,4 +825,38 @@ model ExperimentResult {
   @@index([experimentId])
   @@index([variationId])
   @@index([metricId])
+}
+
+// Search Analytics - Track search queries and results
+model SearchQuery {
+  id            String    @id @default(uuid())
+  query         String    // The search query
+  normalizedQuery String  // Lowercase, trimmed query for aggregation
+  resultCount   Int       // Number of results returned
+  clickedResult String?   // ID of the result that was clicked (if any)
+  clickedType   String?   // Type of clicked result ('analysis', 'document', etc.)
+  searchDuration Int?     // Search duration in milliseconds
+  filters       String?   // JSON: any filters applied
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  userId        String
+  workspaceId   String?
+
+  @@index([userId])
+  @@index([normalizedQuery])
+  @@index([createdAt])
+}
+
+// Search Index Cache - Cached search vectors for faster queries
+model SearchIndex {
+  id            String    @id @default(uuid())
+  entityType    String    // 'analysis', 'document', 'experiment', 'chart', 'repository'
+  entityId      String    // ID of the indexed entity
+  searchText    String    // Concatenated searchable text
+  tokens        String?   // JSON array of tokenized words
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([entityType, entityId])
+  @@index([entityType])
 }
