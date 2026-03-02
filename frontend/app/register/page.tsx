@@ -107,7 +107,14 @@ export default function RegisterPage() {
             />
 
             <p className="text-xs text-foreground-tertiary">
-              By creating an account, you agree to our Terms of Service and Privacy Policy
+              By creating an account, you agree to our{' '}
+              <Link href="/terms" className="text-foreground-secondary hover:text-foreground">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" className="text-foreground-secondary hover:text-foreground">
+                Privacy Policy
+              </Link>
             </p>
 
             <Button type="submit" className="w-full" loading={loading}>

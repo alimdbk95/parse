@@ -112,6 +112,18 @@ export default function LoginPage() {
               Create one
             </Link>
           </p>
+
+          {/* Legal links */}
+          <p className="mt-4 text-center text-xs text-foreground-tertiary">
+            By signing in, you agree to our{' '}
+            <Link href="/terms" className="text-foreground-secondary hover:text-foreground">
+              Terms of Service
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="text-foreground-secondary hover:text-foreground">
+              Privacy Policy
+            </Link>
+          </p>
         </div>
       </div>
 
