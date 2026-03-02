@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from '@/components/layout/sidebar';
 import { SearchModal } from '@/components/search/search-modal';
 import { NotificationCenter } from '@/components/notifications/notification-center';
+import { OnboardingModal } from '@/components/onboarding/onboarding-modal';
 import { useStore } from '@/lib/store';
 import { api } from '@/lib/api';
 import { BrandingProvider } from '@/components/providers/branding-provider';
@@ -30,6 +31,7 @@ export default function DashboardLayout({
   const [loading, setLoading] = useState(true);
   const [analyses, setLocalAnalyses] = useState<any[]>([]);
   const [showSearch, setShowSearch] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Touch handling for swipe gestures
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -91,6 +93,11 @@ export default function DashboardLayout({
           setCurrentWorkspace(workspaces[0]);
         }
 
+        // Show onboarding for new users
+        if (!user.hasCompletedOnboarding) {
+          setShowOnboarding(true);
+        }
+
         // Fetch analyses
         const { analyses } = await api.getAnalyses();
         setAnalyses(analyses);
@@ -106,6 +113,17 @@ export default function DashboardLayout({
 
     initAuth();
   }, [router, setUser, setWorkspaces, setCurrentWorkspace, setAnalyses]);
+
+  const handleOnboardingComplete = async () => {
+    try {
+      await api.completeOnboarding();
+      setShowOnboarding(false);
+    } catch (error) {
+      console.error('Failed to complete onboarding:', error);
+      // Still close the modal even if the API call fails
+      setShowOnboarding(false);
+    }
+  };
 
   const handleNewAnalysis = async () => {
     try {
@@ -243,6 +261,12 @@ export default function DashboardLayout({
         <SearchModal
           isOpen={showSearch}
           onClose={() => setShowSearch(false)}
+        />
+
+        {/* Onboarding Modal */}
+        <OnboardingModal
+          isOpen={showOnboarding}
+          onComplete={handleOnboardingComplete}
         />
       </div>
     </BrandingProvider>

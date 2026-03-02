@@ -7,6 +7,7 @@ interface User {
   name: string;
   avatar?: string;
   theme: string;
+  hasCompletedOnboarding?: boolean;
   brandColors?: string[];
   brandFont?: string;
 }

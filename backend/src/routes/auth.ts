@@ -30,12 +30,14 @@ router.post('/register', async (req, res) => {
         email,
         password: hashedPassword,
         name,
+        hasCompletedOnboarding: false,
       },
       select: {
         id: true,
         email: true,
         name: true,
         theme: true,
+        hasCompletedOnboarding: true,
         createdAt: true,
       },
     });
@@ -121,6 +123,7 @@ router.post('/login', async (req, res) => {
         email: user.email,
         name: user.name,
         theme: user.theme,
+        hasCompletedOnboarding: user.hasCompletedOnboarding,
         brandColors: user.brandColors,
         brandFont: user.brandFont,
       },
@@ -152,6 +155,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
         name: true,
         avatar: true,
         theme: true,
+        hasCompletedOnboarding: true,
         brandColors: true,
         brandLogo: true,
         brandFont: true,
@@ -208,6 +212,27 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Update profile error:', error);
     res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Complete onboarding
+router.post('/complete-onboarding', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: {
+        hasCompletedOnboarding: true,
+      },
+      select: {
+        id: true,
+        hasCompletedOnboarding: true,
+      },
+    });
+
+    res.json({ success: true, user });
+  } catch (error) {
+    console.error('Complete onboarding error:', error);
+    res.status(500).json({ error: 'Failed to complete onboarding' });
   }
 });
 

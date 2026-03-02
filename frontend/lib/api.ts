@@ -93,6 +93,12 @@ class ApiClient {
     });
   }
 
+  async completeOnboarding() {
+    return this.request<{ success: boolean; user: any }>('/auth/complete-onboarding', {
+      method: 'POST',
+    });
+  }
+
   // Documents
   async getDocuments(workspaceId?: string) {
     const query = workspaceId ? `?workspaceId=${workspaceId}` : '';

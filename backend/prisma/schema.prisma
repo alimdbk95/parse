@@ -16,6 +16,9 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // Onboarding
+  hasCompletedOnboarding Boolean @default(false)
+
   // Branding preferences
   brandColors       String?   // JSON string of color palette
   brandLogo         String?
