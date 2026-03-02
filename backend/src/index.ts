@@ -1,6 +1,21 @@
 import dotenv from 'dotenv';
 dotenv.config({ override: true }); // Load env vars BEFORE any other imports, override existing
 
+import * as Sentry from '@sentry/node';
+
+// Initialize Sentry before other imports
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: 0.1, // Capture 10% of transactions for performance monitoring
+    integrations: [
+      Sentry.httpIntegration(),
+      Sentry.expressIntegration(),
+    ],
+  });
+}
+
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
@@ -147,6 +162,11 @@ app.get('/api/health/db', async (req, res) => {
   }
 });
 
+// Sentry error handler - must be before other error handlers
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
+
 // Global error handler - catches multer and other middleware errors
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Global error handler caught:', err);
@@ -154,6 +174,17 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   console.error('Error message:', err?.message);
   console.error('Error code:', err?.code);
   console.error('Error stack:', err?.stack);
+
+  // Capture error in Sentry (if not already captured by Sentry handler)
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(err, {
+      extra: {
+        url: req.url,
+        method: req.method,
+        body: req.body,
+      },
+    });
+  }
 
   // Multer errors
   if (err?.name === 'MulterError') {
