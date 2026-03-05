@@ -1,8 +1,8 @@
 'use client';
 
 import * as Sentry from '@sentry/nextjs';
-import { useEffect } from 'react';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertTriangle, RefreshCw, Home, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Error({
@@ -12,14 +12,22 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
   useEffect(() => {
-    // Log the error to Sentry
-    Sentry.captureException(error);
+    // Log the error to console in development
+    console.error('Application Error:', error);
+
+    // Log the error to Sentry in production
+    if (process.env.NODE_ENV === 'production') {
+      Sentry.captureException(error);
+    }
   }, [error]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="max-w-md w-full text-center">
+      <div className="max-w-lg w-full text-center">
         <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
           <AlertTriangle className="w-8 h-8 text-red-500" />
         </div>
@@ -33,9 +41,35 @@ export default function Error({
         </p>
 
         {error.digest && (
-          <p className="text-xs text-foreground-tertiary mb-6 font-mono">
+          <p className="text-xs text-foreground-tertiary mb-4 font-mono">
             Error ID: {error.digest}
           </p>
+        )}
+
+        {/* Show error details in development */}
+        {isDevelopment && (
+          <div className="mb-6 text-left">
+            <button
+              onClick={() => setShowDetails(!showDetails)}
+              className="flex items-center gap-2 text-sm text-foreground-secondary hover:text-foreground mx-auto mb-2"
+            >
+              {showDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showDetails ? 'Hide' : 'Show'} error details
+            </button>
+
+            {showDetails && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-left overflow-auto max-h-64">
+                <p className="text-sm font-medium text-red-400 mb-2">
+                  {error.name}: {error.message}
+                </p>
+                {error.stack && (
+                  <pre className="text-xs text-red-300/80 whitespace-pre-wrap break-words">
+                    {error.stack}
+                  </pre>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         <div className="flex gap-3 justify-center">

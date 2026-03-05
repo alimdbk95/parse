@@ -18,6 +18,7 @@ import { Menu, MenuItem } from '@/components/ui/dropdown';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useStore } from '@/lib/store';
+import { useToast } from '@/components/ui/toast';
 
 interface Comment {
   id: string;
@@ -31,6 +32,7 @@ export default function ChatPage() {
   const router = useRouter();
   const analysisId = params.id as string;
   const { user, currentWorkspace } = useStore();
+  const toast = useToast();
 
   const [analysis, setAnalysis] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -188,10 +190,15 @@ export default function ChatPage() {
         const filtered = prev.filter((m) => m.id !== tempUserMessage.id);
         return [...filtered, userMessage, messageWithChart];
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error);
       // Remove the optimistic message on error
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMessage.id));
+      // Show error toast
+      toast.error(
+        'Failed to send message',
+        error?.message || 'Please try again'
+      );
     } finally {
       setSending(false);
     }
