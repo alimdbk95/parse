@@ -8,6 +8,8 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { SearchModal } from '@/components/search/search-modal';
 import { NotificationCenter } from '@/components/notifications/notification-center';
 import { OnboardingModal } from '@/components/onboarding/onboarding-modal';
+import { KeyboardShortcutsModal, useKeyboardShortcutsModal } from '@/components/ui/keyboard-shortcuts-modal';
+import { useToast } from '@/components/ui/toast';
 import { useStore } from '@/lib/store';
 import { api } from '@/lib/api';
 import { BrandingProvider } from '@/components/providers/branding-provider';
@@ -32,6 +34,8 @@ export default function DashboardLayout({
   const [analyses, setLocalAnalyses] = useState<any[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const keyboardShortcuts = useKeyboardShortcutsModal();
+  const toast = useToast();
 
   // Touch handling for swipe gestures
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -65,16 +69,48 @@ export default function DashboardLayout({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger in inputs
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
       // Cmd/Ctrl + K to open search
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setShowSearch(true);
       }
+
+      // Cmd/Ctrl + N to create new analysis
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        handleNewAnalysis();
+      }
+
+      // G + H to go home
+      if (e.key === 'g') {
+        const handleSecondKey = (e2: KeyboardEvent) => {
+          if (e2.key === 'h') {
+            router.push('/dashboard');
+          } else if (e2.key === 'd') {
+            router.push('/dashboard/documents');
+          } else if (e2.key === 's') {
+            router.push('/dashboard/settings');
+          }
+          document.removeEventListener('keydown', handleSecondKey);
+        };
+        document.addEventListener('keydown', handleSecondKey);
+        setTimeout(() => document.removeEventListener('keydown', handleSecondKey), 1000);
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -132,9 +168,11 @@ export default function DashboardLayout({
       });
       setLocalAnalyses((prev) => [analysis, ...prev]);
       if (isMobile) setSidebarOpen(false);
+      toast.success('Analysis created', 'Ready to start analyzing');
       router.push(`/dashboard/chat/${analysis.id}`);
     } catch (error) {
       console.error('Failed to create analysis:', error);
+      toast.error('Failed to create analysis', 'Please try again');
     }
   };
 
@@ -267,6 +305,12 @@ export default function DashboardLayout({
         <OnboardingModal
           isOpen={showOnboarding}
           onComplete={handleOnboardingComplete}
+        />
+
+        {/* Keyboard Shortcuts Modal */}
+        <KeyboardShortcutsModal
+          isOpen={keyboardShortcuts.isOpen}
+          onClose={keyboardShortcuts.close}
         />
       </div>
     </BrandingProvider>
