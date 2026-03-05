@@ -58,6 +58,18 @@ export function ChartRenderer({
 }: ChartRendererProps) {
   const chartRef = useRef<HighchartsReact.RefObject>(null);
 
+  // Early return if type is missing
+  if (!type) {
+    return (
+      <div
+        className="flex items-center justify-center text-foreground-tertiary"
+        style={{ height }}
+      >
+        Invalid chart type
+      </div>
+    );
+  }
+
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
   const [editableData, setEditableData] = useState<any[]>([]);

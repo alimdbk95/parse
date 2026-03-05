@@ -566,7 +566,7 @@ export function MessageItem({
 
             {/* Chart - animate in after content */}
             <AnimatePresence>
-              {chartData && !isAnimating && (
+              {chartData && chartData.type && chartData.data && !isAnimating && (
                 <motion.div
                   className="pl-0 sm:pl-8 mt-4"
                   initial={{ opacity: 0, y: 10 }}
