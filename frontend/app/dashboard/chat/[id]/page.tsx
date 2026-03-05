@@ -142,14 +142,18 @@ export default function ChatPage() {
     try {
       await api.updateAnalysis(analysisId, { outputFormat: format });
       setAnalysis((prev: any) => ({ ...prev, outputFormat: format }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save output format:', error);
+      toast.error('Failed to save output format', error?.message || 'Please try again');
     }
 
     // Send the pending message
     if (pendingMessage) {
-      await sendMessageToAPI(pendingMessage);
-      setPendingMessage(null);
+      try {
+        await sendMessageToAPI(pendingMessage);
+      } finally {
+        setPendingMessage(null);
+      }
     }
   };
 
@@ -174,15 +178,20 @@ export default function ChatPage() {
       // If a chart was generated, attach it to the assistant message metadata
       let messageWithChart = assistantMessage;
       if (chart) {
-        const chartData = {
-          type: chart.type,
-          title: chart.title,
-          data: typeof chart.data === 'string' ? JSON.parse(chart.data) : chart.data,
-        };
-        messageWithChart = {
-          ...assistantMessage,
-          metadata: { chart: chartData },
-        };
+        try {
+          const chartData = {
+            type: chart.type,
+            title: chart.title,
+            data: typeof chart.data === 'string' ? JSON.parse(chart.data) : chart.data,
+          };
+          messageWithChart = {
+            ...assistantMessage,
+            metadata: { chart: chartData },
+          };
+        } catch (parseError) {
+          console.error('Failed to parse chart data:', parseError);
+          // Continue without chart if parsing fails
+        }
       }
 
       // Replace temp message and add assistant response with inline chart
