@@ -58,19 +58,7 @@ export function ChartRenderer({
 }: ChartRendererProps) {
   const chartRef = useRef<HighchartsReact.RefObject>(null);
 
-  // Early return if type is missing
-  if (!type) {
-    return (
-      <div
-        className="flex items-center justify-center text-foreground-tertiary"
-        style={{ height }}
-      >
-        Invalid chart type
-      </div>
-    );
-  }
-
-  // Edit mode state
+  // Edit mode state - ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [isEditMode, setIsEditMode] = useState(false);
   const [editableData, setEditableData] = useState<any[]>([]);
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
@@ -96,6 +84,18 @@ export function ChartRenderer({
       fetchAnnotations();
     }
   }, [enableAnnotations, chartId]);
+
+  // Early return if type is missing - AFTER all hooks
+  if (!type) {
+    return (
+      <div
+        className="flex items-center justify-center text-foreground-tertiary"
+        style={{ height }}
+      >
+        Invalid chart type
+      </div>
+    );
+  }
 
   const fetchAnnotations = async () => {
     if (!chartId) return;
