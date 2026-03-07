@@ -1,51 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, Component, ReactNode } from 'react';
-import dynamic from 'next/dynamic';
+import { useState, useEffect, useRef } from 'react';
 import { Pencil, X, Check, Plus, Trash2, RotateCcw, MessageSquare, Send } from 'lucide-react';
 import { api } from '@/lib/api';
-
-// Dynamically import Highcharts to avoid SSR issues
-const HighchartsReact = dynamic(
-  () => import('highcharts-react-official').then((mod) => mod.default),
-  { ssr: false }
-);
-
-// Import Highcharts only on client side
-let Highcharts: any = null;
-if (typeof window !== 'undefined') {
-  Highcharts = require('highcharts');
-}
-
-// Error boundary for chart rendering
-class ChartErrorBoundary extends Component<{ children: ReactNode; height: number }, { hasError: boolean }> {
-  constructor(props: { children: ReactNode; height: number }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, errorInfo: any) {
-    console.error('Chart rendering error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div
-          className="flex items-center justify-center text-foreground-tertiary"
-          style={{ height: this.props.height }}
-        >
-          Failed to render chart
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 const defaultColors = [
   '#f97066', // coral
@@ -97,9 +54,12 @@ export function ChartRenderer({
   chartId,
   onDataChange,
 }: ChartRendererProps) {
-  const chartRef = useRef<any>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartInstanceRef = useRef<any>(null);
+  const [isClient, setIsClient] = useState(false);
+  const [chartError, setChartError] = useState<string | null>(null);
 
-  // Edit mode state - ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
+  // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
   const [editableData, setEditableData] = useState<any[]>([]);
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
@@ -111,6 +71,11 @@ export function ChartRenderer({
   const [addingAnnotation, setAddingAnnotation] = useState<{ dataIndex: number; dataKey?: string } | null>(null);
   const [newAnnotationText, setNewAnnotationText] = useState('');
   const [selectedAnnotation, setSelectedAnnotation] = useState<string | null>(null);
+
+  // Set client flag
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Initialize editable data when entering edit mode
   useEffect(() => {
@@ -126,17 +91,241 @@ export function ChartRenderer({
     }
   }, [enableAnnotations, chartId]);
 
-  // Early return if type is missing - AFTER all hooks
-  if (!type) {
-    return (
-      <div
-        className="flex items-center justify-center text-foreground-tertiary"
-        style={{ height }}
-      >
-        Invalid chart type
-      </div>
-    );
-  }
+  // Initialize Highcharts
+  useEffect(() => {
+    if (!isClient || !chartContainerRef.current) return;
+    if (!type || !data || !Array.isArray(data) || data.length === 0) {
+      setChartError('No data available');
+      return;
+    }
+
+    let Highcharts: any;
+    try {
+      Highcharts = require('highcharts');
+    } catch (e) {
+      setChartError('Failed to load chart library');
+      return;
+    }
+
+    const firstItem = data[0];
+    if (!firstItem || typeof firstItem !== 'object') {
+      setChartError('Invalid data format');
+      return;
+    }
+
+    const keys = Object.keys(firstItem);
+    if (keys.length === 0) {
+      setChartError('No data available');
+      return;
+    }
+
+    const xKey = keys.find((k) => typeof firstItem[k] === 'string') || keys[0];
+    const yKeys = keys.filter((k) => typeof firstItem[k] === 'number');
+
+    // Theme colors based on background
+    const bgColor = background === 'light' ? '#ffffff' : background === 'dark' ? '#18181b' : 'transparent';
+    const textColor = background === 'light' ? '#18181b' : '#a1a1aa';
+    const gridColor = background === 'light' ? '#e4e4e7' : '#27272a';
+
+    const chartData = isEditMode && editableData.length > 0 ? editableData : data;
+    const categories = chartData.map((item: any) => String(item[xKey]));
+
+    // Build series based on chart type
+    let series: any[] = [];
+
+    switch (type) {
+      case 'bar':
+        series = yKeys.map((key, index) => ({
+          type: 'column',
+          name: key,
+          data: chartData.map((item: any) => item[key]),
+          color: colors[index % colors.length],
+        }));
+        break;
+
+      case 'line':
+        series = yKeys.map((key, index) => ({
+          type: 'line',
+          name: key,
+          data: chartData.map((item: any) => item[key]),
+          color: colors[index % colors.length],
+          marker: {
+            enabled: true,
+            radius: 4,
+            fillColor: colors[index % colors.length],
+          },
+        }));
+        break;
+
+      case 'area':
+        series = yKeys.map((key, index) => ({
+          type: 'area',
+          name: key,
+          data: chartData.map((item: any) => item[key]),
+          color: colors[index % colors.length],
+          fillOpacity: 0.3,
+        }));
+        break;
+
+      case 'pie':
+        const valueKey = yKeys[0] || 'value';
+        series = [{
+          type: 'pie',
+          name: valueKey,
+          data: chartData.map((item: any, index: number) => ({
+            name: String(item[xKey]),
+            y: item[valueKey],
+            color: colors[index % colors.length],
+          })),
+        }];
+        break;
+
+      case 'scatter':
+        if (yKeys.length >= 2) {
+          series = [{
+            type: 'scatter',
+            name: 'Data',
+            data: chartData.map((item: any, index: number) => ({
+              x: item[yKeys[0]],
+              y: item[yKeys[1]],
+              color: colors[index % colors.length],
+            })),
+          }];
+        }
+        break;
+    }
+
+    try {
+      // Destroy existing chart
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.destroy();
+      }
+
+      // Create new chart
+      chartInstanceRef.current = Highcharts.chart(chartContainerRef.current, {
+        chart: {
+          backgroundColor: bgColor,
+          style: {
+            fontFamily: 'Inter, system-ui, sans-serif',
+          },
+        },
+        title: {
+          text: undefined,
+        },
+        credits: {
+          enabled: false,
+        },
+        colors: colors,
+        legend: {
+          enabled: showLegend,
+          itemStyle: {
+            color: textColor,
+            fontWeight: 'normal',
+          },
+        },
+        tooltip: {
+          backgroundColor: background === 'light' ? '#ffffff' : '#27272a',
+          borderColor: gridColor,
+          borderRadius: 8,
+          style: {
+            color: background === 'light' ? '#18181b' : '#ffffff',
+          },
+        },
+        xAxis: type !== 'scatter' ? {
+          categories: categories,
+          labels: {
+            style: {
+              color: textColor,
+              fontSize: '12px',
+            },
+          },
+          lineColor: gridColor,
+          tickColor: gridColor,
+          gridLineColor: showGrid ? gridColor : 'transparent',
+        } : {
+          title: {
+            text: yKeys[0],
+            style: { color: textColor },
+          },
+          labels: {
+            style: {
+              color: textColor,
+              fontSize: '12px',
+            },
+          },
+          gridLineColor: showGrid ? gridColor : 'transparent',
+        },
+        yAxis: type !== 'scatter' ? {
+          title: {
+            text: undefined,
+          },
+          labels: {
+            style: {
+              color: textColor,
+              fontSize: '12px',
+            },
+          },
+          gridLineColor: showGrid ? gridColor : 'transparent',
+        } : {
+          title: {
+            text: yKeys[1],
+            style: { color: textColor },
+          },
+          labels: {
+            style: {
+              color: textColor,
+              fontSize: '12px',
+            },
+          },
+          gridLineColor: showGrid ? gridColor : 'transparent',
+        },
+        plotOptions: {
+          series: {
+            animation: {
+              duration: 500,
+            },
+          },
+          column: {
+            borderRadius: 4,
+          },
+          pie: {
+            allowPointSelect: true,
+            cursor: 'pointer',
+            dataLabels: {
+              enabled: true,
+              format: '{point.name}: {point.percentage:.0f}%',
+              style: {
+                color: textColor,
+                textOutline: 'none',
+              },
+            },
+            innerSize: '60%',
+          },
+          area: {
+            fillOpacity: 0.3,
+          },
+        },
+        series: series,
+      });
+
+      setChartError(null);
+    } catch (error) {
+      console.error('Chart creation error:', error);
+      setChartError('Failed to render chart');
+    }
+
+    // Cleanup
+    return () => {
+      if (chartInstanceRef.current) {
+        try {
+          chartInstanceRef.current.destroy();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        chartInstanceRef.current = null;
+      }
+    };
+  }, [isClient, type, data, editableData, isEditMode, colors, showLegend, showGrid, background]);
 
   const fetchAnnotations = async () => {
     if (!chartId) return;
@@ -175,54 +364,9 @@ export function ChartRenderer({
     }
   };
 
-  if (!data || !Array.isArray(data) || data.length === 0 || !data[0]) {
-    return (
-      <div
-        className="flex items-center justify-center text-foreground-tertiary"
-        style={{ height }}
-      >
-        No data available
-      </div>
-    );
-  }
-
-  const firstItem = data[0];
-  if (!firstItem || typeof firstItem !== 'object') {
-    return (
-      <div
-        className="flex items-center justify-center text-foreground-tertiary"
-        style={{ height }}
-      >
-        Invalid data format
-      </div>
-    );
-  }
-
-  const keys = Object.keys(firstItem);
-  if (keys.length === 0) {
-    return (
-      <div
-        className="flex items-center justify-center text-foreground-tertiary"
-        style={{ height }}
-      >
-        No data available
-      </div>
-    );
-  }
-
-  const xKey = keys.find((k) => typeof firstItem[k] === 'string') || keys[0];
-  const yKeys = keys.filter((k) => typeof firstItem[k] === 'number');
-
-  // Theme colors based on background
-  const bgColor = background === 'light' ? '#ffffff' : background === 'dark' ? '#18181b' : 'transparent';
-  const textColor = background === 'light' ? '#18181b' : '#a1a1aa';
-  const gridColor = background === 'light' ? '#e4e4e7' : '#27272a';
-
-  // Use editable data in edit mode, otherwise original data
-  const chartData = isEditMode && editableData.length > 0 ? editableData : data;
-
   // Edit mode handlers
   const handleCellChange = (rowIndex: number, key: string, value: string) => {
+    const firstItem = data[0];
     setEditableData(prev => {
       if (!prev || !prev[rowIndex]) return prev;
       const newData = [...prev];
@@ -263,246 +407,28 @@ export function ChartRenderer({
     setEditingCell(null);
   };
 
-  const handleResetZoom = () => {
-    if (chartRef.current?.chart) {
-      chartRef.current.chart.zoomOut();
-      setIsZoomed(false);
-    }
-  };
+  // Show loading or error state
+  if (!isClient) {
+    return (
+      <div
+        className="flex items-center justify-center text-foreground-tertiary animate-pulse"
+        style={{ height }}
+      >
+        Loading chart...
+      </div>
+    );
+  }
 
-  // Build Highcharts options based on chart type
-  const getChartOptions = (): any => {
-    const categories = chartData.map(item => String(item[xKey]));
-
-    const baseOptions: any = {
-      chart: {
-        backgroundColor: bgColor,
-        style: {
-          fontFamily: 'Inter, system-ui, sans-serif',
-        },
-        zooming: enableZoom && type !== 'pie' ? {
-          type: 'x',
-          resetButton: {
-            theme: {
-              style: {
-                display: 'none', // We'll use our own reset button
-              },
-            },
-          },
-        } : undefined,
-        events: {
-          selection: function(event: any) {
-            if (event.resetSelection) {
-              setIsZoomed(false);
-            } else {
-              setIsZoomed(true);
-            }
-            return true;
-          },
-        },
-      },
-      title: {
-        text: undefined,
-      },
-      credits: {
-        enabled: false,
-      },
-      colors: colors,
-      legend: {
-        enabled: showLegend,
-        itemStyle: {
-          color: textColor,
-          fontWeight: 'normal',
-        },
-        itemHoverStyle: {
-          color: background === 'light' ? '#000000' : '#ffffff',
-        },
-      },
-      tooltip: {
-        backgroundColor: background === 'light' ? '#ffffff' : '#27272a',
-        borderColor: gridColor,
-        borderRadius: 8,
-        style: {
-          color: background === 'light' ? '#18181b' : '#ffffff',
-        },
-        shadow: {
-          color: 'rgba(0, 0, 0, 0.2)',
-          offsetX: 0,
-          offsetY: 2,
-          width: 8,
-        },
-      },
-      xAxis: {
-        categories: type !== 'scatter' ? categories : undefined,
-        labels: {
-          style: {
-            color: textColor,
-            fontSize: '12px',
-          },
-        },
-        lineColor: gridColor,
-        tickColor: gridColor,
-        gridLineColor: showGrid ? gridColor : 'transparent',
-      },
-      yAxis: {
-        title: {
-          text: undefined,
-        },
-        labels: {
-          style: {
-            color: textColor,
-            fontSize: '12px',
-          },
-        },
-        gridLineColor: showGrid ? gridColor : 'transparent',
-      },
-      plotOptions: {
-        series: {
-          animation: {
-            duration: 500,
-          },
-          point: {
-            events: {
-              click: function (this: any) {
-                if (enableAnnotations && showAnnotations && chartId) {
-                  setAddingAnnotation({
-                    dataIndex: this.index,
-                    dataKey: this.series?.name,
-                  });
-                }
-              },
-            },
-          },
-          cursor: enableAnnotations && showAnnotations ? 'pointer' : 'default',
-        },
-        bar: {
-          borderRadius: 4,
-        },
-        column: {
-          borderRadius: 4,
-        },
-        pie: {
-          allowPointSelect: true,
-          cursor: 'pointer',
-          dataLabels: {
-            enabled: true,
-            format: '{point.name}: {point.percentage:.0f}%',
-            style: {
-              color: textColor,
-              textOutline: 'none',
-            },
-          },
-          innerSize: '60%',
-        },
-        area: {
-          fillOpacity: 0.3,
-        },
-      },
-    };
-
-    // Build series based on chart type
-    let series: any[] = [];
-
-    switch (type) {
-      case 'bar':
-        series = yKeys.map((key, index) => ({
-          type: 'column' as const,
-          name: key,
-          data: chartData.map(item => item[key]),
-          color: colors[index % colors.length],
-        }));
-        break;
-
-      case 'line':
-        series = yKeys.map((key, index) => ({
-          type: 'line' as const,
-          name: key,
-          data: chartData.map(item => item[key]),
-          color: colors[index % colors.length],
-          marker: {
-            enabled: true,
-            radius: 4,
-            fillColor: colors[index % colors.length],
-          },
-        }));
-        break;
-
-      case 'area':
-        series = yKeys.map((key, index) => ({
-          type: 'area' as const,
-          name: key,
-          data: chartData.map(item => item[key]),
-          color: colors[index % colors.length],
-          fillColor: Highcharts?.color ? {
-            linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
-            stops: [
-              [0, Highcharts.color(colors[index % colors.length]).setOpacity(0.4).get('rgba') as string],
-              [1, Highcharts.color(colors[index % colors.length]).setOpacity(0.05).get('rgba') as string],
-            ],
-          } : colors[index % colors.length],
-        }));
-        break;
-
-      case 'pie':
-        const valueKey = yKeys[0] || 'value';
-        series = [{
-          type: 'pie' as const,
-          name: valueKey,
-          data: chartData.map((item, index) => ({
-            name: String(item[xKey]),
-            y: item[valueKey],
-            color: colors[index % colors.length],
-          })),
-        }];
-        break;
-
-      case 'scatter':
-        if (yKeys.length >= 2) {
-          series = [{
-            type: 'scatter' as const,
-            name: 'Data',
-            data: chartData.map((item, index) => ({
-              x: item[yKeys[0]],
-              y: item[yKeys[1]],
-              color: colors[index % colors.length],
-            })),
-          }];
-          // Override xAxis for scatter
-          baseOptions.xAxis = {
-            title: {
-              text: yKeys[0],
-              style: { color: textColor },
-            },
-            labels: {
-              style: {
-                color: textColor,
-                fontSize: '12px',
-              },
-            },
-            gridLineColor: showGrid ? gridColor : 'transparent',
-          };
-          baseOptions.yAxis = {
-            title: {
-              text: yKeys[1],
-              style: { color: textColor },
-            },
-            labels: {
-              style: {
-                color: textColor,
-                fontSize: '12px',
-              },
-            },
-            gridLineColor: showGrid ? gridColor : 'transparent',
-          };
-        }
-        break;
-    }
-
-    return {
-      ...baseOptions,
-      series,
-    };
-  };
+  if (chartError) {
+    return (
+      <div
+        className="flex items-center justify-center text-foreground-tertiary"
+        style={{ height }}
+      >
+        {chartError}
+      </div>
+    );
+  }
 
   // Render editable data table
   const renderDataTable = () => {
@@ -510,6 +436,7 @@ export function ChartRenderer({
 
     const tableKeys = Object.keys(editableData[0]);
     if (tableKeys.length === 0) return null;
+    const firstItem = data[0];
 
     return (
       <div className="mt-4 border border-border rounded-lg overflow-hidden">
@@ -559,18 +486,6 @@ export function ChartRenderer({
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 setEditingCell(null);
-                              } else if (e.key === 'Tab') {
-                                e.preventDefault();
-                                const currentKeyIndex = tableKeys.indexOf(key);
-                                const nextKey = tableKeys[currentKeyIndex + 1];
-                                const prevKey = tableKeys[currentKeyIndex - 1];
-                                if (e.shiftKey && prevKey) {
-                                  setEditingCell({ row: rowIndex, col: prevKey });
-                                } else if (!e.shiftKey && nextKey) {
-                                  setEditingCell({ row: rowIndex, col: nextKey });
-                                } else if (!e.shiftKey && rowIndex < editableData.length - 1) {
-                                  setEditingCell({ row: rowIndex + 1, col: tableKeys[0] });
-                                }
                               }
                             }}
                             autoFocus
@@ -622,7 +537,7 @@ export function ChartRenderer({
     );
   };
 
-  const options = getChartOptions();
+  const bgColor = background === 'light' ? '#ffffff' : background === 'dark' ? '#18181b' : 'transparent';
 
   return (
     <div
@@ -632,26 +547,6 @@ export function ChartRenderer({
     >
       {/* Chart Controls */}
       <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
-        {/* Annotations button */}
-        {enableAnnotations && chartId && !isEditMode && (
-          <button
-            onClick={() => setShowAnnotations(!showAnnotations)}
-            className={`p-1.5 rounded-md transition-colors ${
-              showAnnotations
-                ? 'bg-primary text-white'
-                : 'bg-background-tertiary/80 hover:bg-background-tertiary text-foreground-secondary hover:text-foreground'
-            }`}
-            title={showAnnotations ? 'Hide annotations' : 'Show annotations'}
-          >
-            <MessageSquare className="h-4 w-4" />
-            {annotations.length > 0 && (
-              <span className="absolute -top-1 -right-1 h-4 w-4 text-[10px] flex items-center justify-center bg-primary text-white rounded-full">
-                {annotations.length}
-              </span>
-            )}
-          </button>
-        )}
-
         {/* Edit button */}
         {enableEdit && !isEditMode && (
           <button
@@ -663,24 +558,6 @@ export function ChartRenderer({
           </button>
         )}
 
-        {/* Zoom controls */}
-        {enableZoom && type !== 'pie' && !isEditMode && (
-          <>
-            {isZoomed && (
-              <button
-                onClick={handleResetZoom}
-                className="p-1.5 rounded-md bg-background-tertiary/80 hover:bg-background-tertiary text-foreground-secondary hover:text-foreground transition-colors"
-                title="Reset zoom"
-              >
-                <RotateCcw className="h-4 w-4" />
-              </button>
-            )}
-            <div className="px-2 py-1 rounded-md bg-background-tertiary/80 text-xs text-foreground-tertiary">
-              {isZoomed ? 'Zoomed' : 'Drag to zoom'}
-            </div>
-          </>
-        )}
-
         {/* Edit mode indicator */}
         {isEditMode && (
           <div className="px-2 py-1 rounded-md bg-primary/20 text-xs text-primary font-medium">
@@ -689,133 +566,10 @@ export function ChartRenderer({
         )}
       </div>
 
-      <div style={{ height }}>
-        <ChartErrorBoundary height={height}>
-          {Highcharts && (
-            <HighchartsReact
-              highcharts={Highcharts}
-              options={options}
-              ref={chartRef}
-              containerProps={{ style: { height: '100%', width: '100%' } }}
-            />
-          )}
-        </ChartErrorBoundary>
-      </div>
-
-      {/* Zoom instructions */}
-      {enableZoom && type !== 'pie' && !isZoomed && !isEditMode && (
-        <p className="text-center text-xs text-foreground-tertiary mt-1 opacity-60">
-          Click and drag on the chart to zoom in
-        </p>
-      )}
+      <div ref={chartContainerRef} style={{ height, width: '100%' }} />
 
       {/* Editable Data Table */}
       {renderDataTable()}
-
-      {/* Annotations Panel */}
-      {enableAnnotations && showAnnotations && chartId && (
-        <div className="mt-3 border border-border rounded-lg overflow-hidden">
-          <div className="bg-background-secondary px-3 py-2 border-b border-border flex items-center justify-between">
-            <span className="text-sm font-medium text-foreground flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Annotations
-            </span>
-            <span className="text-xs text-foreground-tertiary">
-              Click on data points to add
-            </span>
-          </div>
-
-          {/* Add annotation form */}
-          {addingAnnotation && (
-            <div className="p-3 border-b border-border bg-background-tertiary/50">
-              <p className="text-xs text-foreground-secondary mb-2">
-                Adding annotation for data point {addingAnnotation.dataIndex + 1}
-                {addingAnnotation.dataKey && ` (${addingAnnotation.dataKey})`}
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newAnnotationText}
-                  onChange={(e) => setNewAnnotationText(e.target.value)}
-                  placeholder="Enter your annotation..."
-                  className="flex-1 px-3 py-1.5 text-sm bg-background border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAddAnnotation();
-                    if (e.key === 'Escape') {
-                      setAddingAnnotation(null);
-                      setNewAnnotationText('');
-                    }
-                  }}
-                />
-                <button
-                  onClick={handleAddAnnotation}
-                  disabled={!newAnnotationText.trim()}
-                  className="p-1.5 rounded bg-primary text-white hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    setAddingAnnotation(null);
-                    setNewAnnotationText('');
-                  }}
-                  className="p-1.5 rounded bg-background-tertiary text-foreground-secondary hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Annotations list */}
-          <div className="max-h-48 overflow-y-auto">
-            {annotations.length === 0 ? (
-              <div className="p-4 text-center text-sm text-foreground-tertiary">
-                No annotations yet. Click on a data point to add one.
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {annotations.map((annotation) => (
-                  <div
-                    key={annotation.id}
-                    className={`p-3 hover:bg-background-tertiary/50 cursor-pointer ${
-                      selectedAnnotation === annotation.id ? 'bg-background-tertiary/50' : ''
-                    }`}
-                    onClick={() =>
-                      setSelectedAnnotation(
-                        selectedAnnotation === annotation.id ? null : annotation.id
-                      )
-                    }
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm">{annotation.content}</p>
-                        <p className="text-xs text-foreground-tertiary mt-1">
-                          Point {annotation.dataIndex + 1}
-                          {annotation.dataKey && ` • ${annotation.dataKey}`}
-                          {annotation.createdBy && ` • by ${annotation.createdBy.name}`}
-                        </p>
-                      </div>
-                      {selectedAnnotation === annotation.id && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteAnnotation(annotation.id);
-                          }}
-                          className="p-1 rounded text-foreground-tertiary hover:text-red-500 hover:bg-red-500/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
