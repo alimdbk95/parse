@@ -1,10 +1,51 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import Highcharts from 'highcharts';
-import HighchartsReact from 'highcharts-react-official';
+import { useState, useEffect, useRef, useMemo, Component, ReactNode } from 'react';
+import dynamic from 'next/dynamic';
 import { Pencil, X, Check, Plus, Trash2, RotateCcw, MessageSquare, Send } from 'lucide-react';
 import { api } from '@/lib/api';
+
+// Dynamically import Highcharts to avoid SSR issues
+const HighchartsReact = dynamic(
+  () => import('highcharts-react-official').then((mod) => mod.default),
+  { ssr: false }
+);
+
+// Import Highcharts only on client side
+let Highcharts: any = null;
+if (typeof window !== 'undefined') {
+  Highcharts = require('highcharts');
+}
+
+// Error boundary for chart rendering
+class ChartErrorBoundary extends Component<{ children: ReactNode; height: number }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode; height: number }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error('Chart rendering error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          className="flex items-center justify-center text-foreground-tertiary"
+          style={{ height: this.props.height }}
+        >
+          Failed to render chart
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const defaultColors = [
   '#f97066', // coral
@@ -56,7 +97,7 @@ export function ChartRenderer({
   chartId,
   onDataChange,
 }: ChartRendererProps) {
-  const chartRef = useRef<HighchartsReact.RefObject>(null);
+  const chartRef = useRef<any>(null);
 
   // Edit mode state - ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   const [isEditMode, setIsEditMode] = useState(false);
@@ -230,10 +271,10 @@ export function ChartRenderer({
   };
 
   // Build Highcharts options based on chart type
-  const getChartOptions = (): Highcharts.Options => {
+  const getChartOptions = (): any => {
     const categories = chartData.map(item => String(item[xKey]));
 
-    const baseOptions: Highcharts.Options = {
+    const baseOptions: any = {
       chart: {
         backgroundColor: bgColor,
         style: {
@@ -250,7 +291,7 @@ export function ChartRenderer({
           },
         } : undefined,
         events: {
-          selection: function(event) {
+          selection: function(event: any) {
             if (event.resetSelection) {
               setIsZoomed(false);
             } else {
@@ -322,7 +363,7 @@ export function ChartRenderer({
           },
           point: {
             events: {
-              click: function (this: Highcharts.Point) {
+              click: function (this: any) {
                 if (enableAnnotations && showAnnotations && chartId) {
                   setAddingAnnotation({
                     dataIndex: this.index,
@@ -360,7 +401,7 @@ export function ChartRenderer({
     };
 
     // Build series based on chart type
-    let series: Highcharts.SeriesOptionsType[] = [];
+    let series: any[] = [];
 
     switch (type) {
       case 'bar':
@@ -392,13 +433,13 @@ export function ChartRenderer({
           name: key,
           data: chartData.map(item => item[key]),
           color: colors[index % colors.length],
-          fillColor: {
+          fillColor: Highcharts?.color ? {
             linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
             stops: [
               [0, Highcharts.color(colors[index % colors.length]).setOpacity(0.4).get('rgba') as string],
               [1, Highcharts.color(colors[index % colors.length]).setOpacity(0.05).get('rgba') as string],
             ],
-          },
+          } : colors[index % colors.length],
         }));
         break;
 
@@ -649,12 +690,16 @@ export function ChartRenderer({
       </div>
 
       <div style={{ height }}>
-        <HighchartsReact
-          highcharts={Highcharts}
-          options={options}
-          ref={chartRef}
-          containerProps={{ style: { height: '100%', width: '100%' } }}
-        />
+        <ChartErrorBoundary height={height}>
+          {Highcharts && (
+            <HighchartsReact
+              highcharts={Highcharts}
+              options={options}
+              ref={chartRef}
+              containerProps={{ style: { height: '100%', width: '100%' } }}
+            />
+          )}
+        </ChartErrorBoundary>
       </div>
 
       {/* Zoom instructions */}
