@@ -63,7 +63,21 @@ export function MessageItem({
   const commentInputRef = useRef<HTMLInputElement>(null);
 
   const isUser = message.role === 'user';
-  const chartData = localChartData || message.metadata?.chart;
+
+  // Parse metadata if it's a string (from database)
+  const parsedMetadata = (() => {
+    if (!message.metadata) return null;
+    if (typeof message.metadata === 'string') {
+      try {
+        return JSON.parse(message.metadata);
+      } catch {
+        return null;
+      }
+    }
+    return message.metadata;
+  })();
+
+  const chartData = localChartData || parsedMetadata?.chart;
 
   // Typing animation for new assistant messages
   useEffect(() => {
