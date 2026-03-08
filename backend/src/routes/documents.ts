@@ -4,6 +4,7 @@ import { authenticate, AuthRequest } from '../middleware/auth.js';
 import { upload, isS3Enabled } from '../middleware/upload.js';
 import { documentService } from '../services/documentService.js';
 import { uploadToS3, getSignedDownloadUrl, deleteFromS3 } from '../services/s3Service.js';
+import { analyticsService } from '../services/analyticsService.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -128,6 +129,19 @@ router.post('/upload', authenticate, upload.single('file'), async (req: AuthRequ
         uploadedBy: req.user,
       });
     }
+
+    // Track analytics event
+    analyticsService.trackEvent({
+      eventType: 'document_uploaded',
+      userId: req.user!.id,
+      workspaceId: workspaceId || undefined,
+      documentId: document.id,
+      eventData: {
+        documentType: document.type,
+        documentSize: document.size,
+        documentName: document.name,
+      },
+    });
 
     res.status(201).json({ document });
   } catch (error: any) {

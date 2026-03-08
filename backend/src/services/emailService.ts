@@ -41,6 +41,180 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   }
 }
 
+// Password Reset Email
+interface PasswordResetEmailParams {
+  toEmail: string;
+  userName: string;
+  resetLink: string;
+  expiresIn: string;
+}
+
+export async function sendPasswordResetEmail(params: PasswordResetEmailParams): Promise<boolean> {
+  const { toEmail, userName, resetLink, expiresIn } = params;
+
+  const subject = 'Reset your Parse password';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Password Reset</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #ffffff;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #0a0a0a;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 500px; background-color: #141414; border-radius: 12px; border: 1px solid #262626;">
+          <tr>
+            <td style="padding: 40px;">
+              <!-- Logo -->
+              <div style="text-align: center; margin-bottom: 32px;">
+                <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff;">Parse</h1>
+              </div>
+
+              <!-- Content -->
+              <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 600; color: #ffffff; text-align: center;">
+                Reset your password
+              </h2>
+
+              <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #a1a1aa; text-align: center;">
+                Hi <strong style="color: #ffffff;">${userName}</strong>, we received a request to reset your password.
+                Click the button below to create a new password.
+              </p>
+
+              <!-- CTA Button -->
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${resetLink}"
+                   style="display: inline-block; padding: 14px 32px; background-color: #ffffff; color: #0a0a0a; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 8px;">
+                  Reset Password
+                </a>
+              </div>
+
+              <!-- Expiration Notice -->
+              <p style="margin: 24px 0 0 0; font-size: 14px; color: #71717a; text-align: center;">
+                This link expires in ${expiresIn}.
+              </p>
+
+              <!-- Security Notice -->
+              <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #262626;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: #71717a; text-align: center;">
+                  If you didn't request a password reset, you can safely ignore this email.
+                </p>
+                <p style="margin: 12px 0 0 0; font-size: 12px; color: #3b82f6; text-align: center; word-break: break-all;">
+                  ${resetLink}
+                </p>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Footer -->
+        <p style="margin: 24px 0 0 0; font-size: 12px; color: #52525b; text-align: center;">
+          Parse - Research Document Analysis Platform
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
+  return sendEmail({
+    to: toEmail,
+    subject,
+    html,
+  });
+}
+
+// Email Verification Email
+interface EmailVerificationParams {
+  toEmail: string;
+  userName: string;
+  verificationLink: string;
+  expiresIn: string;
+}
+
+export async function sendEmailVerificationEmail(params: EmailVerificationParams): Promise<boolean> {
+  const { toEmail, userName, verificationLink, expiresIn } = params;
+
+  const subject = 'Verify your Parse email address';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Email</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #ffffff;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #0a0a0a;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 500px; background-color: #141414; border-radius: 12px; border: 1px solid #262626;">
+          <tr>
+            <td style="padding: 40px;">
+              <!-- Logo -->
+              <div style="text-align: center; margin-bottom: 32px;">
+                <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff;">Parse</h1>
+              </div>
+
+              <!-- Content -->
+              <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 600; color: #ffffff; text-align: center;">
+                Welcome to Parse!
+              </h2>
+
+              <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #a1a1aa; text-align: center;">
+                Hi <strong style="color: #ffffff;">${userName}</strong>, thanks for signing up!
+                Please verify your email address to get started.
+              </p>
+
+              <!-- CTA Button -->
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${verificationLink}"
+                   style="display: inline-block; padding: 14px 32px; background-color: #22c55e; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px; border-radius: 8px;">
+                  Verify Email Address
+                </a>
+              </div>
+
+              <!-- Expiration Notice -->
+              <p style="margin: 24px 0 0 0; font-size: 14px; color: #71717a; text-align: center;">
+                This link expires in ${expiresIn}.
+              </p>
+
+              <!-- Link fallback -->
+              <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #262626;">
+                <p style="margin: 0 0 8px 0; font-size: 12px; color: #71717a; text-align: center;">
+                  If the button doesn't work, copy and paste this link:
+                </p>
+                <p style="margin: 0; font-size: 12px; color: #3b82f6; text-align: center; word-break: break-all;">
+                  ${verificationLink}
+                </p>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Footer -->
+        <p style="margin: 24px 0 0 0; font-size: 12px; color: #52525b; text-align: center;">
+          Parse - Research Document Analysis Platform
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
+  return sendEmail({
+    to: toEmail,
+    subject,
+    html,
+  });
+}
+
 interface InvitationEmailParams {
   toEmail: string;
   workspaceName: string;

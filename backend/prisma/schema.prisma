@@ -16,6 +16,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // Email verification
+  emailVerified Boolean   @default(false)
+  emailVerifiedAt DateTime?
+
   // Onboarding
   hasCompletedOnboarding Boolean @default(false)
 
@@ -51,6 +55,38 @@ model User {
   timelines     Timeline[]
   mediaFiles    MediaFile[]
   experiments   Experiment[]
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+}
+
+// Password Reset Tokens
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// Email Verification Tokens
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
 }
 
 model Workspace {
@@ -865,4 +901,41 @@ model SearchIndex {
 
   @@unique([entityType, entityId])
   @@index([entityType])
+}
+
+// Usage Analytics - Track user activity and feature usage
+model UsageEvent {
+  id            String    @id @default(uuid())
+  eventType     String    // 'page_view', 'analysis_created', 'document_uploaded', 'chart_generated', etc.
+  eventData     String?   // JSON additional data
+  userId        String?
+  workspaceId   String?
+  analysisId    String?
+  documentId    String?
+  sessionId     String?   // Browser session ID
+  userAgent     String?
+  ipAddress     String?
+  referrer      String?
+  path          String?   // Page path
+  duration      Int?      // Duration in ms (for timed events)
+  createdAt     DateTime  @default(now())
+
+  @@index([eventType])
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([createdAt])
+}
+
+// Daily Analytics Summary - Aggregated daily stats
+model AnalyticsSummary {
+  id            String    @id @default(uuid())
+  date          DateTime  @db.Date
+  metricType    String    // 'users', 'analyses', 'documents', 'messages', 'charts'
+  count         Int       @default(0)
+  workspaceId   String?   // null for global stats
+  metadata      String?   // JSON additional breakdown
+
+  @@unique([date, metricType, workspaceId])
+  @@index([date])
+  @@index([metricType])
 }

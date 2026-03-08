@@ -18,6 +18,7 @@ if (process.env.SENTRY_DSN) {
 
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
@@ -43,6 +44,7 @@ import timelineRoutes from './routes/timelines.js';
 import mediaRoutes from './routes/media.js';
 import parameterRoutes from './routes/parameters.js';
 import experimentRoutes from './routes/experiments.js';
+import analyticsRoutes from './routes/analytics.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -78,6 +80,62 @@ app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use('/uploads', express.static('uploads'));
 
+// Rate limiting configuration
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // Limit each IP to 1000 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/api/health', // Skip health checks
+});
+
+// Stricter rate limiting for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Limit each IP to 20 auth requests per windowMs
+  message: { error: 'Too many authentication attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Very strict rate limiting for password reset (prevent email spam)
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // Limit each IP to 5 password reset requests per hour
+  message: { error: 'Too many password reset attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Stricter rate limiting for AI/analysis endpoints (expensive operations)
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // Limit each IP to 10 AI requests per minute
+  message: { error: 'Too many AI requests, please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// File upload rate limiting
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 50, // Limit each IP to 50 uploads per hour
+  message: { error: 'Too many file uploads, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply global rate limiter to all API routes
+app.use('/api', globalLimiter);
+
+// Apply stricter limits to specific routes
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', passwordResetLimiter);
+app.use('/api/analyses/*/messages', aiLimiter);
+app.use('/api/documents', uploadLimiter);
+
 // Make io available to routes
 app.set('io', io);
 
@@ -103,6 +161,7 @@ app.use('/api/timelines', timelineRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/parameters', parameterRoutes);
 app.use('/api/experiments', experimentRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Make io globally available for notifications
 (global as any).io = io;

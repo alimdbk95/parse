@@ -99,6 +99,47 @@ class ApiClient {
     });
   }
 
+  // Password reset
+  async forgotPassword(email: string) {
+    return this.request<{ success: boolean; message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: { email },
+    });
+  }
+
+  async verifyResetToken(token: string) {
+    return this.request<{ valid: boolean; email: string }>(`/auth/verify-reset-token?token=${token}`);
+  }
+
+  async resetPassword(token: string, password: string) {
+    return this.request<{ success: boolean; message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: { token, password },
+    });
+  }
+
+  // Email verification
+  async sendVerificationEmail() {
+    return this.request<{ success: boolean; message: string }>('/auth/send-verification', {
+      method: 'POST',
+    });
+  }
+
+  async verifyEmail(token: string) {
+    return this.request<{ success: boolean; message: string }>('/auth/verify-email', {
+      method: 'POST',
+      body: { token },
+    });
+  }
+
+  // Change password
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request<{ success: boolean; message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: { currentPassword, newPassword },
+    });
+  }
+
   // Documents
   async getDocuments(workspaceId?: string) {
     const query = workspaceId ? `?workspaceId=${workspaceId}` : '';
@@ -2040,6 +2081,75 @@ class ApiClient {
       method: 'POST',
       body: data,
     });
+  }
+
+  // Analytics
+  async trackEvent(eventType: string, eventData?: Record<string, any>) {
+    // Fire and forget - don't await
+    this.request('/analytics/track', {
+      method: 'POST',
+      body: {
+        eventType,
+        eventData,
+        sessionId: typeof window !== 'undefined' ? sessionStorage.getItem('session_id') : undefined,
+        path: typeof window !== 'undefined' ? window.location.pathname : undefined,
+      },
+    }).catch(() => {
+      // Silently ignore analytics errors
+    });
+  }
+
+  async getAnalyticsOverview(workspaceId?: string) {
+    const params = workspaceId ? `?workspaceId=${workspaceId}` : '';
+    return this.request<{
+      totals: {
+        analyses: number;
+        documents: number;
+        charts: number;
+        users: number;
+      };
+      thisMonth: {
+        analyses: number;
+        documents: number;
+        messages: number;
+        analysesChange: number;
+        documentsChange: number;
+      };
+      todayActiveUsers: number;
+      recentActivity: {
+        type: string;
+        data: any;
+        userId: string;
+        timestamp: string;
+      }[];
+    }>(`/analytics/overview${params}`);
+  }
+
+  async getUsageStats(options: {
+    startDate?: string;
+    endDate?: string;
+    workspaceId?: string;
+    groupBy?: 'day' | 'week' | 'month';
+  }) {
+    const params = new URLSearchParams();
+    if (options.startDate) params.append('startDate', options.startDate);
+    if (options.endDate) params.append('endDate', options.endDate);
+    if (options.workspaceId) params.append('workspaceId', options.workspaceId);
+    if (options.groupBy) params.append('groupBy', options.groupBy);
+
+    return this.request<{
+      eventCounts: { eventType: string; count: number }[];
+      uniqueUsers: number;
+      dailyActiveUsers: { date: string; count: number }[];
+      topPages: { path: string; count: number }[];
+    }>(`/analytics/usage?${params.toString()}`);
+  }
+
+  async getFeatureUsage(workspaceId?: string) {
+    const params = workspaceId ? `?workspaceId=${workspaceId}` : '';
+    return this.request<{
+      features: { feature: string; count: number }[];
+    }>(`/analytics/features${params}`);
   }
 }
 

@@ -5,6 +5,7 @@ import { aiService } from '../services/aiService.js';
 import PDFDocument from 'pdfkit';
 import { createNotification, extractMentions, findUsersByMention } from './notifications.js';
 import { createVersion } from '../services/versionService.js';
+import { analyticsService } from '../services/analyticsService.js';
 
 const router = Router();
 
@@ -96,6 +97,15 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
         createdBy: req.user,
       });
     }
+
+    // Track analytics event
+    analyticsService.trackEvent({
+      eventType: 'analysis_created',
+      userId: req.user!.id,
+      workspaceId: workspaceId || undefined,
+      analysisId: analysis.id,
+      eventData: { title: analysis.title },
+    });
 
     res.status(201).json({ analysis });
   } catch (error) {
@@ -295,6 +305,24 @@ router.post('/:id/messages', authenticate, async (req: AuthRequest, res) => {
 
     // Create version for the new message
     await createVersion(analysisId, req.user!.id, 'message_added', content.slice(0, 50));
+
+    // Track analytics events
+    analyticsService.trackEvent({
+      eventType: 'message_sent',
+      userId: req.user!.id,
+      workspaceId: analysis.workspaceId || undefined,
+      analysisId,
+    });
+
+    if (chart) {
+      analyticsService.trackEvent({
+        eventType: 'chart_generated',
+        userId: req.user!.id,
+        workspaceId: analysis.workspaceId || undefined,
+        analysisId,
+        eventData: { chartType: chart.type, chartTitle: chart.title },
+      });
+    }
 
     res.status(201).json({
       userMessage,

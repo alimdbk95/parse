@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Pencil, X, Check, Plus, Trash2, RotateCcw, MessageSquare, Send } from 'lucide-react';
-import { api } from '@/lib/api';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Pencil, X, Check, Plus, Trash2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 
 const defaultColors = [
   '#f97066', // coral
@@ -14,16 +14,6 @@ const defaultColors = [
   '#a78bfa', // purple
   '#34d399', // emerald
 ];
-
-interface Annotation {
-  id: string;
-  content: string;
-  dataIndex: number;
-  dataKey?: string;
-  color?: string;
-  createdBy?: { id: string; name: string; avatar?: string };
-  createdAt?: string;
-}
 
 interface ChartRendererProps {
   type: 'bar' | 'line' | 'pie' | 'area' | 'scatter';
@@ -40,6 +30,455 @@ interface ChartRendererProps {
   onDataChange?: (newData: any[]) => void;
 }
 
+// Simple SVG-based chart component that doesn't depend on external libraries
+function SimpleChart({
+  type,
+  data,
+  height = 300,
+  colors = defaultColors,
+  background = 'dark',
+}: {
+  type: string;
+  data: any[];
+  height: number;
+  colors: string[];
+  background: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 400, height: height });
+
+  useEffect(() => {
+    if (containerRef.current) {
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          setDimensions({
+            width: entry.contentRect.width || 400,
+            height: height,
+          });
+        }
+      });
+      resizeObserver.observe(containerRef.current);
+      return () => resizeObserver.disconnect();
+    }
+  }, [height]);
+
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return (
+      <div
+        ref={containerRef}
+        className="flex items-center justify-center text-foreground-tertiary"
+        style={{ height }}
+      >
+        No data available
+      </div>
+    );
+  }
+
+  const bgColor = background === 'light' ? '#ffffff' : background === 'dark' ? '#18181b' : 'transparent';
+  const textColor = background === 'light' ? '#18181b' : '#a1a1aa';
+  const gridColor = background === 'light' ? '#e4e4e7' : '#27272a';
+
+  // Get data keys
+  const firstItem = data[0];
+  const keys = Object.keys(firstItem);
+  const nameKey = keys.find((k) => typeof firstItem[k] === 'string') || keys[0];
+  const valueKey = keys.find((k) => typeof firstItem[k] === 'number') || 'value';
+
+  // Get all numeric keys for multi-series
+  const numericKeys = keys.filter((k) => typeof firstItem[k] === 'number');
+  const maxValue = Math.max(
+    ...data.flatMap((item) => numericKeys.map((k) => Number(item[k]) || 0))
+  );
+
+  const padding = { top: 20, right: 20, bottom: 40, left: 50 };
+  const chartWidth = dimensions.width - padding.left - padding.right;
+  const chartHeight = dimensions.height - padding.top - padding.bottom;
+
+  const renderBarChart = () => {
+    const barWidth = chartWidth / data.length * 0.7;
+    const gap = chartWidth / data.length * 0.3;
+    const seriesCount = numericKeys.length || 1;
+    const singleBarWidth = barWidth / seriesCount;
+
+    return (
+      <g>
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => (
+          <g key={i}>
+            <line
+              x1={padding.left}
+              y1={padding.top + chartHeight * (1 - ratio)}
+              x2={padding.left + chartWidth}
+              y2={padding.top + chartHeight * (1 - ratio)}
+              stroke={gridColor}
+              strokeWidth={1}
+            />
+            <text
+              x={padding.left - 8}
+              y={padding.top + chartHeight * (1 - ratio) + 4}
+              fill={textColor}
+              fontSize={10}
+              textAnchor="end"
+            >
+              {Math.round(maxValue * ratio)}
+            </text>
+          </g>
+        ))}
+
+        {/* Bars */}
+        {data.map((item, i) => {
+          const x = padding.left + i * (barWidth + gap) + gap / 2;
+
+          return (
+            <g key={i}>
+              {numericKeys.length > 0 ? (
+                numericKeys.map((key, j) => {
+                  const value = Number(item[key]) || 0;
+                  const barHeight = (value / maxValue) * chartHeight;
+
+                  return (
+                    <rect
+                      key={j}
+                      x={x + j * singleBarWidth}
+                      y={padding.top + chartHeight - barHeight}
+                      width={singleBarWidth - 2}
+                      height={barHeight}
+                      fill={colors[j % colors.length]}
+                      rx={3}
+                    />
+                  );
+                })
+              ) : (
+                <rect
+                  x={x}
+                  y={padding.top + chartHeight - (Number(item[valueKey] || 0) / maxValue) * chartHeight}
+                  width={barWidth}
+                  height={(Number(item[valueKey] || 0) / maxValue) * chartHeight}
+                  fill={colors[i % colors.length]}
+                  rx={3}
+                />
+              )}
+
+              {/* X-axis label */}
+              <text
+                x={x + barWidth / 2}
+                y={dimensions.height - 8}
+                fill={textColor}
+                fontSize={10}
+                textAnchor="middle"
+              >
+                {String(item[nameKey] || '').slice(0, 10)}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+    );
+  };
+
+  const renderLineChart = () => {
+    const pointGap = chartWidth / (data.length - 1 || 1);
+
+    return (
+      <g>
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => (
+          <g key={i}>
+            <line
+              x1={padding.left}
+              y1={padding.top + chartHeight * (1 - ratio)}
+              x2={padding.left + chartWidth}
+              y2={padding.top + chartHeight * (1 - ratio)}
+              stroke={gridColor}
+              strokeWidth={1}
+            />
+            <text
+              x={padding.left - 8}
+              y={padding.top + chartHeight * (1 - ratio) + 4}
+              fill={textColor}
+              fontSize={10}
+              textAnchor="end"
+            >
+              {Math.round(maxValue * ratio)}
+            </text>
+          </g>
+        ))}
+
+        {/* Lines for each series */}
+        {(numericKeys.length > 0 ? numericKeys : [valueKey]).map((key, seriesIndex) => {
+          const points = data.map((item, i) => ({
+            x: padding.left + i * pointGap,
+            y: padding.top + chartHeight - (Number(item[key] || 0) / maxValue) * chartHeight,
+          }));
+
+          const pathD = points
+            .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+            .join(' ');
+
+          return (
+            <g key={seriesIndex}>
+              <path
+                d={pathD}
+                fill="none"
+                stroke={colors[seriesIndex % colors.length]}
+                strokeWidth={2}
+              />
+              {points.map((p, i) => (
+                <circle
+                  key={i}
+                  cx={p.x}
+                  cy={p.y}
+                  r={4}
+                  fill={colors[seriesIndex % colors.length]}
+                />
+              ))}
+            </g>
+          );
+        })}
+
+        {/* X-axis labels */}
+        {data.map((item, i) => (
+          <text
+            key={i}
+            x={padding.left + i * pointGap}
+            y={dimensions.height - 8}
+            fill={textColor}
+            fontSize={10}
+            textAnchor="middle"
+          >
+            {String(item[nameKey] || '').slice(0, 8)}
+          </text>
+        ))}
+      </g>
+    );
+  };
+
+  const renderAreaChart = () => {
+    const pointGap = chartWidth / (data.length - 1 || 1);
+
+    return (
+      <g>
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => (
+          <g key={i}>
+            <line
+              x1={padding.left}
+              y1={padding.top + chartHeight * (1 - ratio)}
+              x2={padding.left + chartWidth}
+              y2={padding.top + chartHeight * (1 - ratio)}
+              stroke={gridColor}
+              strokeWidth={1}
+            />
+            <text
+              x={padding.left - 8}
+              y={padding.top + chartHeight * (1 - ratio) + 4}
+              fill={textColor}
+              fontSize={10}
+              textAnchor="end"
+            >
+              {Math.round(maxValue * ratio)}
+            </text>
+          </g>
+        ))}
+
+        {/* Area for each series */}
+        {(numericKeys.length > 0 ? numericKeys : [valueKey]).map((key, seriesIndex) => {
+          const points = data.map((item, i) => ({
+            x: padding.left + i * pointGap,
+            y: padding.top + chartHeight - (Number(item[key] || 0) / maxValue) * chartHeight,
+          }));
+
+          const areaPathD =
+            `M ${points[0].x} ${padding.top + chartHeight} ` +
+            points.map((p) => `L ${p.x} ${p.y}`).join(' ') +
+            ` L ${points[points.length - 1].x} ${padding.top + chartHeight} Z`;
+
+          return (
+            <g key={seriesIndex}>
+              <path
+                d={areaPathD}
+                fill={colors[seriesIndex % colors.length]}
+                fillOpacity={0.3}
+              />
+              <path
+                d={points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')}
+                fill="none"
+                stroke={colors[seriesIndex % colors.length]}
+                strokeWidth={2}
+              />
+            </g>
+          );
+        })}
+
+        {/* X-axis labels */}
+        {data.map((item, i) => (
+          <text
+            key={i}
+            x={padding.left + i * pointGap}
+            y={dimensions.height - 8}
+            fill={textColor}
+            fontSize={10}
+            textAnchor="middle"
+          >
+            {String(item[nameKey] || '').slice(0, 8)}
+          </text>
+        ))}
+      </g>
+    );
+  };
+
+  const renderPieChart = () => {
+    const centerX = dimensions.width / 2;
+    const centerY = dimensions.height / 2;
+    const radius = Math.min(chartWidth, chartHeight) / 2 - 20;
+    const innerRadius = radius * 0.6;
+
+    const total = data.reduce((sum, item) => sum + (Number(item[valueKey]) || 0), 0);
+    let currentAngle = -Math.PI / 2;
+
+    return (
+      <g>
+        {data.map((item, i) => {
+          const value = Number(item[valueKey]) || 0;
+          const angle = (value / total) * 2 * Math.PI;
+          const startAngle = currentAngle;
+          const endAngle = currentAngle + angle;
+          currentAngle = endAngle;
+
+          const x1 = centerX + radius * Math.cos(startAngle);
+          const y1 = centerY + radius * Math.sin(startAngle);
+          const x2 = centerX + radius * Math.cos(endAngle);
+          const y2 = centerY + radius * Math.sin(endAngle);
+          const x1Inner = centerX + innerRadius * Math.cos(startAngle);
+          const y1Inner = centerY + innerRadius * Math.sin(startAngle);
+          const x2Inner = centerX + innerRadius * Math.cos(endAngle);
+          const y2Inner = centerY + innerRadius * Math.sin(endAngle);
+
+          const largeArcFlag = angle > Math.PI ? 1 : 0;
+
+          const pathD = `
+            M ${x1} ${y1}
+            A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}
+            L ${x2Inner} ${y2Inner}
+            A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${x1Inner} ${y1Inner}
+            Z
+          `;
+
+          // Label position
+          const midAngle = (startAngle + endAngle) / 2;
+          const labelRadius = radius + 20;
+          const labelX = centerX + labelRadius * Math.cos(midAngle);
+          const labelY = centerY + labelRadius * Math.sin(midAngle);
+          const percentage = ((value / total) * 100).toFixed(0);
+
+          return (
+            <g key={i}>
+              <path d={pathD} fill={colors[i % colors.length]} />
+              {angle > 0.2 && (
+                <text
+                  x={labelX}
+                  y={labelY}
+                  fill={textColor}
+                  fontSize={11}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                >
+                  {String(item[nameKey] || '').slice(0, 8)} ({percentage}%)
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </g>
+    );
+  };
+
+  const renderScatterChart = () => {
+    if (numericKeys.length < 2) {
+      return (
+        <text x={dimensions.width / 2} y={dimensions.height / 2} fill={textColor} textAnchor="middle">
+          Scatter plots require at least 2 numeric columns
+        </text>
+      );
+    }
+
+    const xKey = numericKeys[0];
+    const yKey = numericKeys[1];
+    const maxX = Math.max(...data.map((item) => Number(item[xKey]) || 0));
+    const maxY = Math.max(...data.map((item) => Number(item[yKey]) || 0));
+
+    return (
+      <g>
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => (
+          <g key={i}>
+            <line
+              x1={padding.left}
+              y1={padding.top + chartHeight * (1 - ratio)}
+              x2={padding.left + chartWidth}
+              y2={padding.top + chartHeight * (1 - ratio)}
+              stroke={gridColor}
+              strokeWidth={1}
+            />
+            <text
+              x={padding.left - 8}
+              y={padding.top + chartHeight * (1 - ratio) + 4}
+              fill={textColor}
+              fontSize={10}
+              textAnchor="end"
+            >
+              {Math.round(maxY * ratio)}
+            </text>
+          </g>
+        ))}
+
+        {/* Points */}
+        {data.map((item, i) => {
+          const x = padding.left + ((Number(item[xKey]) || 0) / maxX) * chartWidth;
+          const y = padding.top + chartHeight - ((Number(item[yKey]) || 0) / maxY) * chartHeight;
+
+          return (
+            <circle
+              key={i}
+              cx={x}
+              cy={y}
+              r={6}
+              fill={colors[i % colors.length]}
+              fillOpacity={0.7}
+            />
+          );
+        })}
+
+        {/* X-axis labels */}
+        {[0, 0.5, 1].map((ratio, i) => (
+          <text
+            key={i}
+            x={padding.left + chartWidth * ratio}
+            y={dimensions.height - 8}
+            fill={textColor}
+            fontSize={10}
+            textAnchor="middle"
+          >
+            {Math.round(maxX * ratio)}
+          </text>
+        ))}
+      </g>
+    );
+  };
+
+  return (
+    <div ref={containerRef} style={{ width: '100%', height, backgroundColor: bgColor }}>
+      <svg width={dimensions.width} height={dimensions.height}>
+        {type === 'bar' && renderBarChart()}
+        {type === 'line' && renderLineChart()}
+        {type === 'area' && renderAreaChart()}
+        {type === 'pie' && renderPieChart()}
+        {type === 'scatter' && renderScatterChart()}
+      </svg>
+    </div>
+  );
+}
+
 export function ChartRenderer({
   type,
   data,
@@ -54,23 +493,11 @@ export function ChartRenderer({
   chartId,
   onDataChange,
 }: ChartRendererProps) {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartInstanceRef = useRef<any>(null);
   const [isClient, setIsClient] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
-
-  // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
   const [editableData, setEditableData] = useState<any[]>([]);
   const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
-  const [isZoomed, setIsZoomed] = useState(false);
-
-  // Annotations state
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [showAnnotations, setShowAnnotations] = useState(false);
-  const [addingAnnotation, setAddingAnnotation] = useState<{ dataIndex: number; dataKey?: string } | null>(null);
-  const [newAnnotationText, setNewAnnotationText] = useState('');
-  const [selectedAnnotation, setSelectedAnnotation] = useState<string | null>(null);
 
   // Set client flag
   useEffect(() => {
@@ -84,296 +511,29 @@ export function ChartRenderer({
     }
   }, [isEditMode, data]);
 
-  // Fetch annotations when chart has an ID and annotations are enabled
+  // Validate data
   useEffect(() => {
-    if (enableAnnotations && chartId) {
-      fetchAnnotations();
+    if (!type) {
+      setChartError('No chart type specified');
+      return;
     }
-  }, [enableAnnotations, chartId]);
-
-  // Initialize Highcharts
-  useEffect(() => {
-    if (!isClient || !chartContainerRef.current) return;
-    if (!type || !data || !Array.isArray(data) || data.length === 0) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
       setChartError('No data available');
       return;
     }
-
-    let Highcharts: any;
-    try {
-      Highcharts = require('highcharts');
-    } catch (e) {
-      setChartError('Failed to load chart library');
-      return;
-    }
-
-    const firstItem = data[0];
-    if (!firstItem || typeof firstItem !== 'object') {
-      setChartError('Invalid data format');
-      return;
-    }
-
-    const keys = Object.keys(firstItem);
-    if (keys.length === 0) {
-      setChartError('No data available');
-      return;
-    }
-
-    const xKey = keys.find((k) => typeof firstItem[k] === 'string') || keys[0];
-    const yKeys = keys.filter((k) => typeof firstItem[k] === 'number');
-
-    // Theme colors based on background
-    const bgColor = background === 'light' ? '#ffffff' : background === 'dark' ? '#18181b' : 'transparent';
-    const textColor = background === 'light' ? '#18181b' : '#a1a1aa';
-    const gridColor = background === 'light' ? '#e4e4e7' : '#27272a';
-
-    const chartData = isEditMode && editableData.length > 0 ? editableData : data;
-    const categories = chartData.map((item: any) => String(item[xKey]));
-
-    // Build series based on chart type
-    let series: any[] = [];
-
-    switch (type) {
-      case 'bar':
-        series = yKeys.map((key, index) => ({
-          type: 'column',
-          name: key,
-          data: chartData.map((item: any) => item[key]),
-          color: colors[index % colors.length],
-        }));
-        break;
-
-      case 'line':
-        series = yKeys.map((key, index) => ({
-          type: 'line',
-          name: key,
-          data: chartData.map((item: any) => item[key]),
-          color: colors[index % colors.length],
-          marker: {
-            enabled: true,
-            radius: 4,
-            fillColor: colors[index % colors.length],
-          },
-        }));
-        break;
-
-      case 'area':
-        series = yKeys.map((key, index) => ({
-          type: 'area',
-          name: key,
-          data: chartData.map((item: any) => item[key]),
-          color: colors[index % colors.length],
-          fillOpacity: 0.3,
-        }));
-        break;
-
-      case 'pie':
-        const valueKey = yKeys[0] || 'value';
-        series = [{
-          type: 'pie',
-          name: valueKey,
-          data: chartData.map((item: any, index: number) => ({
-            name: String(item[xKey]),
-            y: item[valueKey],
-            color: colors[index % colors.length],
-          })),
-        }];
-        break;
-
-      case 'scatter':
-        if (yKeys.length >= 2) {
-          series = [{
-            type: 'scatter',
-            name: 'Data',
-            data: chartData.map((item: any, index: number) => ({
-              x: item[yKeys[0]],
-              y: item[yKeys[1]],
-              color: colors[index % colors.length],
-            })),
-          }];
-        }
-        break;
-    }
-
-    try {
-      // Destroy existing chart
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.destroy();
-      }
-
-      // Create new chart
-      chartInstanceRef.current = Highcharts.chart(chartContainerRef.current, {
-        chart: {
-          backgroundColor: bgColor,
-          style: {
-            fontFamily: 'Inter, system-ui, sans-serif',
-          },
-        },
-        title: {
-          text: undefined,
-        },
-        credits: {
-          enabled: false,
-        },
-        colors: colors,
-        legend: {
-          enabled: showLegend,
-          itemStyle: {
-            color: textColor,
-            fontWeight: 'normal',
-          },
-        },
-        tooltip: {
-          backgroundColor: background === 'light' ? '#ffffff' : '#27272a',
-          borderColor: gridColor,
-          borderRadius: 8,
-          style: {
-            color: background === 'light' ? '#18181b' : '#ffffff',
-          },
-        },
-        xAxis: type !== 'scatter' ? {
-          categories: categories,
-          labels: {
-            style: {
-              color: textColor,
-              fontSize: '12px',
-            },
-          },
-          lineColor: gridColor,
-          tickColor: gridColor,
-          gridLineColor: showGrid ? gridColor : 'transparent',
-        } : {
-          title: {
-            text: yKeys[0],
-            style: { color: textColor },
-          },
-          labels: {
-            style: {
-              color: textColor,
-              fontSize: '12px',
-            },
-          },
-          gridLineColor: showGrid ? gridColor : 'transparent',
-        },
-        yAxis: type !== 'scatter' ? {
-          title: {
-            text: undefined,
-          },
-          labels: {
-            style: {
-              color: textColor,
-              fontSize: '12px',
-            },
-          },
-          gridLineColor: showGrid ? gridColor : 'transparent',
-        } : {
-          title: {
-            text: yKeys[1],
-            style: { color: textColor },
-          },
-          labels: {
-            style: {
-              color: textColor,
-              fontSize: '12px',
-            },
-          },
-          gridLineColor: showGrid ? gridColor : 'transparent',
-        },
-        plotOptions: {
-          series: {
-            animation: {
-              duration: 500,
-            },
-          },
-          column: {
-            borderRadius: 4,
-          },
-          pie: {
-            allowPointSelect: true,
-            cursor: 'pointer',
-            dataLabels: {
-              enabled: true,
-              format: '{point.name}: {point.percentage:.0f}%',
-              style: {
-                color: textColor,
-                textOutline: 'none',
-              },
-            },
-            innerSize: '60%',
-          },
-          area: {
-            fillOpacity: 0.3,
-          },
-        },
-        series: series,
-      });
-
-      setChartError(null);
-    } catch (error) {
-      console.error('Chart creation error:', error);
-      setChartError('Failed to render chart');
-    }
-
-    // Cleanup
-    return () => {
-      if (chartInstanceRef.current) {
-        try {
-          chartInstanceRef.current.destroy();
-        } catch (e) {
-          // Ignore cleanup errors
-        }
-        chartInstanceRef.current = null;
-      }
-    };
-  }, [isClient, type, data, editableData, isEditMode, colors, showLegend, showGrid, background]);
-
-  const fetchAnnotations = async () => {
-    if (!chartId) return;
-    try {
-      const { annotations: fetchedAnnotations } = await api.getChartAnnotations(chartId);
-      setAnnotations(fetchedAnnotations);
-    } catch (error) {
-      console.error('Failed to fetch annotations:', error);
-    }
-  };
-
-  const handleAddAnnotation = async () => {
-    if (!chartId || !addingAnnotation || !newAnnotationText.trim()) return;
-
-    try {
-      const { annotation } = await api.createChartAnnotation(chartId, {
-        content: newAnnotationText,
-        dataIndex: addingAnnotation.dataIndex,
-        dataKey: addingAnnotation.dataKey,
-      });
-      setAnnotations([...annotations, annotation]);
-      setAddingAnnotation(null);
-      setNewAnnotationText('');
-    } catch (error) {
-      console.error('Failed to add annotation:', error);
-    }
-  };
-
-  const handleDeleteAnnotation = async (annotationId: string) => {
-    try {
-      await api.deleteChartAnnotation(annotationId);
-      setAnnotations(annotations.filter((a) => a.id !== annotationId));
-      setSelectedAnnotation(null);
-    } catch (error) {
-      console.error('Failed to delete annotation:', error);
-    }
-  };
+    setChartError(null);
+  }, [type, data]);
 
   // Edit mode handlers
   const handleCellChange = (rowIndex: number, key: string, value: string) => {
     const firstItem = data[0];
-    setEditableData(prev => {
+    setEditableData((prev) => {
       if (!prev || !prev[rowIndex]) return prev;
       const newData = [...prev];
       const isNumeric = firstItem && typeof firstItem[key] === 'number';
       newData[rowIndex] = {
         ...newData[rowIndex],
-        [key]: isNumeric ? (parseFloat(value) || 0) : value,
+        [key]: isNumeric ? parseFloat(value) || 0 : value,
       };
       return newData;
     });
@@ -383,15 +543,15 @@ export function ChartRenderer({
     const newRow: any = {};
     const firstDataItem = editableData[0] || data[0];
     if (firstDataItem) {
-      Object.keys(firstDataItem).forEach(key => {
+      Object.keys(firstDataItem).forEach((key) => {
         newRow[key] = typeof firstDataItem[key] === 'number' ? 0 : '';
       });
     }
-    setEditableData(prev => [...prev, newRow]);
+    setEditableData((prev) => [...prev, newRow]);
   };
 
   const handleDeleteRow = (rowIndex: number) => {
-    setEditableData(prev => prev.filter((_, i) => i !== rowIndex));
+    setEditableData((prev) => prev.filter((_, i) => i !== rowIndex));
   };
 
   const handleApplyChanges = () => {
@@ -407,7 +567,7 @@ export function ChartRenderer({
     setEditingCell(null);
   };
 
-  // Show loading or error state
+  // Show loading state
   if (!isClient) {
     return (
       <div
@@ -419,6 +579,7 @@ export function ChartRenderer({
     );
   }
 
+  // Show error state
   if (chartError) {
     return (
       <div
@@ -464,8 +625,7 @@ export function ChartRenderer({
                     {key}
                   </th>
                 ))}
-                <th className="px-3 py-2 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider border-b border-border w-10">
-                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider border-b border-border w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -538,13 +698,10 @@ export function ChartRenderer({
   };
 
   const bgColor = background === 'light' ? '#ffffff' : background === 'dark' ? '#18181b' : 'transparent';
+  const chartData = isEditMode && editableData.length > 0 ? editableData : data;
 
   return (
-    <div
-      data-chart-container
-      style={{ backgroundColor: bgColor }}
-      className="rounded-lg p-2 relative"
-    >
+    <div data-chart-container style={{ backgroundColor: bgColor }} className="rounded-lg p-2 relative">
       {/* Chart Controls */}
       <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
         {/* Edit button */}
@@ -560,13 +717,17 @@ export function ChartRenderer({
 
         {/* Edit mode indicator */}
         {isEditMode && (
-          <div className="px-2 py-1 rounded-md bg-primary/20 text-xs text-primary font-medium">
-            Editing
-          </div>
+          <div className="px-2 py-1 rounded-md bg-primary/20 text-xs text-primary font-medium">Editing</div>
         )}
       </div>
 
-      <div ref={chartContainerRef} style={{ height, width: '100%' }} />
+      <SimpleChart
+        type={type}
+        data={chartData}
+        height={height}
+        colors={colors}
+        background={background}
+      />
 
       {/* Editable Data Table */}
       {renderDataTable()}
