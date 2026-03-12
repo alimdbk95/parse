@@ -6,6 +6,7 @@ import PDFDocument from 'pdfkit';
 import { createNotification, extractMentions, findUsersByMention } from './notifications.js';
 import { createVersion } from '../services/versionService.js';
 import { analyticsService } from '../services/analyticsService.js';
+import { safeJsonParse } from '../utils/safeJson.js';
 
 const router = Router();
 
@@ -597,9 +598,9 @@ router.patch('/:analysisId/messages/:messageId/metadata', authenticate, async (r
     }
 
     // Merge existing metadata with new metadata
-    const existingMetadata = currentMessage.metadata
-      ? (typeof currentMessage.metadata === 'string' ? JSON.parse(currentMessage.metadata) : currentMessage.metadata)
-      : {};
+    const existingMetadata = typeof currentMessage.metadata === 'string'
+      ? safeJsonParse(currentMessage.metadata, {})
+      : (currentMessage.metadata || {});
     const mergedMetadata = { ...existingMetadata, ...metadata };
 
     // Update the message
@@ -1039,9 +1040,9 @@ router.get('/:id/export/pdf', authenticate, async (req: AuthRequest, res) => {
 
       // Check for chart in message metadata
       if (message.metadata) {
-        try {
-          const metadata = JSON.parse(message.metadata);
-          if (metadata.chart) {
+        const metadata = safeJsonParse(message.metadata, {} as any);
+        if (metadata.chart) {
+          try {
             doc.moveDown(0.5);
 
             // Chart indicator box
@@ -1062,9 +1063,9 @@ router.get('/:id/export/pdf', authenticate, async (req: AuthRequest, res) => {
               .text(`Type: ${metadata.chart.type?.toUpperCase() || 'CHART'} • Data points: ${metadata.chart.data?.length || 0}`, 60, doc.y - 12);
 
             doc.moveDown(1.5);
+          } catch {
+            // Ignore chart rendering errors
           }
-        } catch {
-          // Ignore JSON parse errors
         }
       }
 
@@ -1117,13 +1118,9 @@ router.get('/:id/export/pdf', authenticate, async (req: AuthRequest, res) => {
           .fillColor('#666666')
           .text(`Type: ${chart.type.toUpperCase()}`, 65, chartY + 30);
 
-        try {
-          const chartData = JSON.parse(chart.data);
-          doc
-            .text(`Data points: ${chartData.length}`, 200, chartY + 30);
-        } catch {
-          // Ignore
-        }
+        const chartData = safeJsonParse(chart.data, []);
+        doc
+          .text(`Data points: ${Array.isArray(chartData) ? chartData.length : 0}`, 200, chartY + 30);
 
         doc.y = chartY + 70;
         doc.moveDown(0.5);

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { safeJsonParse } from '../utils/safeJson.js';
 
 const prisma = new PrismaClient();
 
@@ -245,7 +246,7 @@ export const analyticsService = {
       todayActiveUsers: todayActiveUsers.length,
       recentActivity: recentEvents.map((e) => ({
         type: e.eventType,
-        data: e.eventData ? JSON.parse(e.eventData) : null,
+        data: safeJsonParse(e.eventData, null),
         userId: e.userId,
         timestamp: e.createdAt,
       })),

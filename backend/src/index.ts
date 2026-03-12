@@ -2,6 +2,18 @@ import dotenv from 'dotenv';
 dotenv.config({ override: true }); // Load env vars BEFORE any other imports, override existing
 
 import * as Sentry from '@sentry/node';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import { logger, morganStream, logError } from './utils/logger.js';
+import { validateEnv } from './utils/validateEnv.js';
+
+// Validate environment variables before anything else
+try {
+  validateEnv();
+} catch (error) {
+  console.error('Environment validation failed:', error);
+  process.exit(1);
+}
 
 // Initialize Sentry before other imports
 if (process.env.SENTRY_DSN) {
@@ -57,6 +69,15 @@ const io = new Server(httpServer, {
 });
 
 export const prisma = new PrismaClient();
+
+// Security headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginEmbedderPolicy: false,
+}));
+
+// HTTP request logging
+app.use(morgan('combined', { stream: morganStream }));
 
 // Middleware
 const allowedOrigins = [
@@ -269,63 +290,131 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// Socket.io connection handling
+// Socket.io connection handling with error handling
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  logger.info('User connected', { socketId: socket.id });
 
   // Join a workspace room
   socket.on('join-workspace', (workspaceId: string) => {
-    socket.join(`workspace:${workspaceId}`);
-    console.log(`Socket ${socket.id} joined workspace:${workspaceId}`);
+    try {
+      socket.join(`workspace:${workspaceId}`);
+      logger.debug('Socket joined workspace', { socketId: socket.id, workspaceId });
+    } catch (error) {
+      logError('Socket join-workspace error', error, { socketId: socket.id, workspaceId });
+      if (process.env.SENTRY_DSN) Sentry.captureException(error);
+    }
   });
 
   // Join an analysis room
   socket.on('join-analysis', (analysisId: string) => {
-    socket.join(`analysis:${analysisId}`);
-    console.log(`Socket ${socket.id} joined analysis:${analysisId}`);
+    try {
+      socket.join(`analysis:${analysisId}`);
+      logger.debug('Socket joined analysis', { socketId: socket.id, analysisId });
+    } catch (error) {
+      logError('Socket join-analysis error', error, { socketId: socket.id, analysisId });
+      if (process.env.SENTRY_DSN) Sentry.captureException(error);
+    }
   });
 
   // Join user's personal notification room
   socket.on('join-user', (userId: string) => {
-    socket.join(`user:${userId}`);
-    console.log(`Socket ${socket.id} joined user:${userId}`);
+    try {
+      socket.join(`user:${userId}`);
+      logger.debug('Socket joined user room', { socketId: socket.id, userId });
+    } catch (error) {
+      logError('Socket join-user error', error, { socketId: socket.id, userId });
+      if (process.env.SENTRY_DSN) Sentry.captureException(error);
+    }
   });
 
   socket.on('leave-user', (userId: string) => {
-    socket.leave(`user:${userId}`);
+    try {
+      socket.leave(`user:${userId}`);
+    } catch (error) {
+      logError('Socket leave-user error', error, { socketId: socket.id, userId });
+    }
   });
 
   // Leave rooms
   socket.on('leave-workspace', (workspaceId: string) => {
-    socket.leave(`workspace:${workspaceId}`);
+    try {
+      socket.leave(`workspace:${workspaceId}`);
+    } catch (error) {
+      logError('Socket leave-workspace error', error, { socketId: socket.id, workspaceId });
+    }
   });
 
   socket.on('leave-analysis', (analysisId: string) => {
-    socket.leave(`analysis:${analysisId}`);
+    try {
+      socket.leave(`analysis:${analysisId}`);
+    } catch (error) {
+      logError('Socket leave-analysis error', error, { socketId: socket.id, analysisId });
+    }
   });
 
   // Presence tracking
   socket.on('user-active', (data: { workspaceId: string; userId: string; userName: string }) => {
-    socket.to(`workspace:${data.workspaceId}`).emit('user-presence', {
-      type: 'active',
-      userId: data.userId,
-      userName: data.userName,
-    });
+    try {
+      socket.to(`workspace:${data.workspaceId}`).emit('user-presence', {
+        type: 'active',
+        userId: data.userId,
+        userName: data.userName,
+      });
+    } catch (error) {
+      logError('Socket user-active error', error, { socketId: socket.id, data });
+      if (process.env.SENTRY_DSN) Sentry.captureException(error);
+    }
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    logger.info('User disconnected', { socketId: socket.id });
+  });
+
+  // Handle socket errors
+  socket.on('error', (error) => {
+    logError('Socket error', error, { socketId: socket.id });
+    if (process.env.SENTRY_DSN) Sentry.captureException(error);
   });
 });
 
 const PORT = process.env.PORT || 3001;
 
 httpServer.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`Parse API server running on port ${PORT}`);
+  logger.info(`Parse API server running on port ${PORT}`);
 });
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
+// Global error handlers to prevent crashes
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+  logError('Unhandled Promise Rejection', reason as Error, { promise: String(promise) });
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(reason);
+  }
+  // Don't exit - log and continue
 });
+
+process.on('uncaughtException', (error: Error) => {
+  logError('Uncaught Exception', error);
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(error);
+  }
+  // Give Sentry time to send the error, then exit
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
+});
+
+// Graceful shutdown handlers
+async function gracefulShutdown(signal: string) {
+  logger.info(`${signal} received, shutting down gracefully`);
+  try {
+    await prisma.$disconnect();
+    logger.info('Database connection closed');
+    process.exit(0);
+  } catch (error) {
+    logError('Error during graceful shutdown', error as Error);
+    process.exit(1);
+  }
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

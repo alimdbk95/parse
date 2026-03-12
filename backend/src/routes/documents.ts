@@ -5,7 +5,9 @@ import { upload, isS3Enabled } from '../middleware/upload.js';
 import { documentService } from '../services/documentService.js';
 import { uploadToS3, getSignedDownloadUrl, deleteFromS3 } from '../services/s3Service.js';
 import { analyticsService } from '../services/analyticsService.js';
-import fs from 'fs';
+import { safeJsonParse } from '../utils/safeJson.js';
+import { logger } from '../utils/logger.js';
+import fs from 'fs/promises';
 import path from 'path';
 
 const router = Router();
@@ -214,7 +216,7 @@ router.get('/:id/content', authenticate, async (req: AuthRequest, res) => {
 
     res.json({
       content: document.content,
-      metadata: document.metadata ? JSON.parse(document.metadata) : null,
+      metadata: safeJsonParse(document.metadata, null),
     });
   } catch (error) {
     console.error('Get content error:', error);
@@ -276,8 +278,13 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
     // Delete file from storage
     if (isS3Enabled) {
       await deleteFromS3(document.path);
-    } else if (fs.existsSync(document.path)) {
-      fs.unlinkSync(document.path);
+    } else {
+      try {
+        await fs.unlink(document.path);
+      } catch (fsError) {
+        // Log but don't fail - file might already be deleted
+        logger.warn('Failed to delete file from disk', { path: document.path, error: fsError });
+      }
     }
 
     await prisma.document.delete({
