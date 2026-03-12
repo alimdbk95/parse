@@ -22,6 +22,8 @@ import {
   Loader2,
   AlertCircle,
   Eye,
+  Lock,
+  Camera,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -105,9 +107,20 @@ export default function SettingsPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Profile state
   const [name, setName] = useState(user?.name || '');
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   // Branding state - initialized from store
   const [logo, setLogo] = useState<string | null>(null);
@@ -440,6 +453,93 @@ export default function SettingsPage() {
     }
   };
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Image must be less than 2MB');
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setAvatarPreview(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to server
+    setUploadingAvatar(true);
+    try {
+      // Convert to base64 for API
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      const { user: updatedUser } = await api.updateProfile({ avatar: base64 });
+      setUser({ ...user!, ...updatedUser });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (error) {
+      console.error('Failed to upload avatar:', error);
+      setAvatarPreview(null);
+      alert('Failed to upload avatar');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    // Validation
+    setPasswordError(null);
+    setPasswordSuccess(false);
+
+    if (!currentPassword) {
+      setPasswordError('Current password is required');
+      return;
+    }
+
+    if (!newPassword) {
+      setPasswordError('New password is required');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await api.changePassword(currentPassword, newPassword);
+      setPasswordSuccess(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordSuccess(false), 5000);
+    } catch (error: any) {
+      console.error('Failed to change password:', error);
+      setPasswordError(error?.message || 'Failed to change password');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-4xl p-4 md:p-8">
@@ -486,9 +586,37 @@ export default function SettingsPage() {
               <CardContent className="space-y-6">
                 {/* Avatar */}
                 <div className="flex items-center gap-4">
-                  <Avatar name={user?.name || ''} size="lg" />
+                  <div className="relative">
+                    {avatarPreview || user?.avatar ? (
+                      <img
+                        src={avatarPreview || user?.avatar}
+                        alt={user?.name || ''}
+                        className="h-16 w-16 rounded-full object-cover"
+                      />
+                    ) : (
+                      <Avatar name={user?.name || ''} size="lg" />
+                    )}
+                    {uploadingAvatar && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                        <Loader2 className="h-6 w-6 animate-spin text-white" />
+                      </div>
+                    )}
+                  </div>
                   <div>
-                    <Button variant="secondary" size="sm">
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={uploadingAvatar}
+                    >
+                      <Camera className="h-4 w-4 mr-1.5" />
                       Change Avatar
                     </Button>
                     <p className="mt-1 text-xs text-foreground-tertiary">
@@ -564,6 +692,75 @@ export default function SettingsPage() {
                 <p className="text-xs text-foreground-tertiary">
                   Changes are saved automatically
                 </p>
+              </CardContent>
+            </Card>
+
+            {/* Security Card */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Security
+                </CardTitle>
+                <CardDescription>
+                  Update your password to keep your account secure
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {passwordError && (
+                  <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    {passwordError}
+                  </div>
+                )}
+                {passwordSuccess && (
+                  <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3 text-sm text-green-400 flex items-center gap-2">
+                    <Check className="h-4 w-4 flex-shrink-0" />
+                    Password changed successfully
+                  </div>
+                )}
+
+                <Input
+                  label="Current Password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    setPasswordError(null);
+                  }}
+                  placeholder="Enter current password"
+                />
+
+                <Input
+                  label="New Password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    setPasswordError(null);
+                  }}
+                  placeholder="Enter new password (min 8 characters)"
+                />
+
+                <Input
+                  label="Confirm New Password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setPasswordError(null);
+                  }}
+                  placeholder="Confirm new password"
+                />
+
+                <Button
+                  onClick={handlePasswordChange}
+                  loading={changingPassword}
+                  disabled={!currentPassword || !newPassword || !confirmPassword}
+                >
+                  <Lock className="h-4 w-4 mr-1.5" />
+                  Change Password
+                </Button>
               </CardContent>
             </Card>
           </TabPanel>
