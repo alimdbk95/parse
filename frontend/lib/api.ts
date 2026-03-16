@@ -93,9 +93,15 @@ class ApiClient {
     });
   }
 
-  async completeOnboarding() {
+  async completeOnboarding(data: {
+    profession?: string;
+    useCase?: string;
+    companySize?: string;
+    referralSource?: string;
+  }) {
     return this.request<{ success: boolean; user: any }>('/auth/complete-onboarding', {
       method: 'POST',
+      body: data,
     });
   }
 

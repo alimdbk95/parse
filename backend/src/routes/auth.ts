@@ -247,14 +247,24 @@ router.patch('/profile', authenticate, async (req: AuthRequest, res) => {
 // Complete onboarding
 router.post('/complete-onboarding', authenticate, async (req: AuthRequest, res) => {
   try {
+    const { profession, useCase, companySize, referralSource } = req.body;
+
     const user = await prisma.user.update({
       where: { id: req.user!.id },
       data: {
         hasCompletedOnboarding: true,
+        profession: profession || null,
+        useCase: useCase || null,
+        companySize: companySize || null,
+        referralSource: referralSource || null,
       },
       select: {
         id: true,
         hasCompletedOnboarding: true,
+        profession: true,
+        useCase: true,
+        companySize: true,
+        referralSource: true,
       },
     });
 

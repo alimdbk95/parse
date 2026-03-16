@@ -22,6 +22,10 @@ model User {
 
   // Onboarding
   hasCompletedOnboarding Boolean @default(false)
+  profession      String?   // researcher, analyst, student, product_manager, engineer, executive, other
+  useCase         String?   // analyze_documents, generate_charts, research_insights, team_collaboration, other
+  companySize     String?   // solo, small, medium, large, enterprise
+  referralSource  String?   // google, twitter, linkedin, friend, other
 
   // Branding preferences
   brandColors       String?   // JSON string of color palette

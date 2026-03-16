@@ -129,9 +129,10 @@ export default function DashboardLayout({
           setCurrentWorkspace(workspaces[0]);
         }
 
-        // Show onboarding for new users
+        // Redirect to onboarding for new users
         if (!user.hasCompletedOnboarding) {
-          setShowOnboarding(true);
+          router.push('/onboarding');
+          return;
         }
 
         // Fetch analyses
@@ -152,7 +153,7 @@ export default function DashboardLayout({
 
   const handleOnboardingComplete = async () => {
     try {
-      await api.completeOnboarding();
+      await api.completeOnboarding({});
       setShowOnboarding(false);
     } catch (error) {
       console.error('Failed to complete onboarding:', error);

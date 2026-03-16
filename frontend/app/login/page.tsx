@@ -31,7 +31,12 @@ export default function LoginPage() {
       if (data.workspaces.length > 0) {
         setCurrentWorkspace(data.workspaces[0]);
       }
-      router.push('/dashboard');
+      // Redirect to onboarding if not completed, otherwise dashboard
+      if (!data.user.hasCompletedOnboarding) {
+        router.push('/onboarding');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to login');
     } finally {

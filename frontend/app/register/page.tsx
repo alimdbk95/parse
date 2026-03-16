@@ -44,7 +44,8 @@ export default function RegisterPage() {
       setToken(data.token);
       setWorkspaces([{ ...data.workspace, role: 'admin' }]);
       setCurrentWorkspace({ ...data.workspace, role: 'admin' });
-      router.push('/dashboard');
+      // New users go to onboarding
+      router.push('/onboarding');
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
     } finally {
