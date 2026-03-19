@@ -211,9 +211,9 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-            className="fixed left-1/2 top-[15%] -translate-x-1/2 w-full max-w-xl z-50 px-4"
+            className="fixed inset-x-0 top-[5%] sm:top-[15%] sm:left-1/2 sm:-translate-x-1/2 sm:inset-x-auto w-full max-w-xl z-50 px-3 sm:px-4"
           >
-            <div className="bg-background border border-border rounded-2xl shadow-2xl overflow-hidden">
+            <div className="bg-background border border-border rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] sm:max-h-[80vh] flex flex-col">
               {/* Search Input */}
               <div className="flex items-center gap-3 p-4 border-b border-border">
                 <Search className="h-5 w-5 text-foreground-tertiary flex-shrink-0" />
@@ -241,7 +241,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               </div>
 
               {/* Results */}
-              <div className="max-h-[400px] overflow-y-auto">
+              <div className="flex-1 max-h-[50vh] sm:max-h-[400px] overflow-y-auto">
                 {loading ? (
                   <div className="p-8 text-center">
                     <motion.div

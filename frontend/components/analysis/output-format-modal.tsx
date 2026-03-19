@@ -112,11 +112,11 @@ export function OutputFormatModal({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-            className="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none"
+            className="fixed inset-3 sm:inset-0 z-50 flex items-center justify-center sm:px-4 pointer-events-none"
           >
-            <div className="pointer-events-auto w-full max-w-2xl bg-background border border-border rounded-2xl shadow-2xl overflow-hidden">
+            <div className="pointer-events-auto w-full max-w-2xl bg-background border border-border rounded-2xl shadow-2xl overflow-hidden max-h-[calc(100vh-1.5rem)] sm:max-h-[90vh] flex flex-col">
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-border">
+              <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
                     <Sparkles className="h-5 w-5 text-primary" />
@@ -137,7 +137,7 @@ export function OutputFormatModal({
               </div>
 
               {/* Format Options */}
-              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto">
+              <div className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 overflow-y-auto">
                 {OUTPUT_FORMATS.map((format) => {
                   const Icon = format.icon;
                   const isSelected = selectedFormat === format.id;
@@ -204,7 +204,7 @@ export function OutputFormatModal({
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between p-6 border-t border-border bg-background-secondary/30">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 sm:p-6 border-t border-border bg-background-secondary/30 flex-shrink-0">
                 <p className="text-sm text-foreground-tertiary">
                   You can change this later in analysis settings
                 </p>

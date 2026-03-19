@@ -109,11 +109,11 @@ export function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsMod
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-2xl max-h-[80vh] overflow-hidden"
+            className="fixed inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 top-1/2 -translate-y-1/2 z-50 w-auto sm:w-full max-w-2xl max-h-[85vh] sm:max-h-[80vh] overflow-hidden"
           >
-            <div className="bg-background border border-border rounded-2xl shadow-2xl">
+            <div className="bg-background border border-border rounded-2xl shadow-2xl flex flex-col max-h-[85vh] sm:max-h-[80vh]">
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Command className="w-4 h-4 text-primary" />
@@ -129,8 +129,8 @@ export function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsMod
               </div>
 
               {/* Content */}
-              <div className="p-6 overflow-y-auto max-h-[60vh]">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   {shortcutGroups.map((group) => (
                     <div key={group.title}>
                       <h3 className="text-sm font-medium text-foreground-tertiary uppercase tracking-wider mb-3">
@@ -159,7 +159,7 @@ export function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsMod
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 border-t border-border bg-background-secondary/30">
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-border bg-background-secondary/30 flex-shrink-0">
                 <p className="text-xs text-foreground-tertiary text-center">
                   Press <KeyboardKey>?</KeyboardKey> to toggle this menu
                 </p>

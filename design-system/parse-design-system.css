@@ -1,0 +1,560 @@
+/**
+ * Parse Design System
+ * Copy these styles to Figma or use with Figma Tokens plugin
+ *
+ * To use in Figma:
+ * 1. Install "Tokens Studio for Figma" plugin
+ * 2. Import figma-tokens.json
+ * 3. Or manually create styles using these values
+ */
+
+/* ===========================================
+   COLOR TOKENS
+   =========================================== */
+
+:root {
+  /* Primary */
+  --color-primary: #6366F1;
+  --color-primary-hover: #5558E3;
+  --color-primary-light: rgba(99, 102, 241, 0.1);
+
+  /* Accent Colors */
+  --color-accent-teal: #2DD4BF;
+  --color-accent-purple: #A855F7;
+  --color-accent-orange: #FB923C;
+  --color-accent-pink: #F43F5E;
+
+  /* Background */
+  --color-background: #0A0A0F;
+  --color-background-secondary: #12121A;
+  --color-background-tertiary: #1A1A24;
+  --color-card: #16161F;
+
+  /* Border */
+  --color-border: #2A2A3C;
+  --color-border-hover: #3A3A4C;
+
+  /* Text */
+  --color-foreground: #FAFAFA;
+  --color-foreground-secondary: #A1A1AA;
+  --color-foreground-tertiary: #71717A;
+
+  /* Semantic */
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --color-info: #3B82F6;
+}
+
+/* ===========================================
+   TYPOGRAPHY
+   =========================================== */
+
+:root {
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Font Sizes */
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-base: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 30px;
+  --font-size-4xl: 36px;
+
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line Heights */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+}
+
+/* ===========================================
+   SPACING
+   =========================================== */
+
+:root {
+  --spacing-0: 0px;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+}
+
+/* ===========================================
+   BORDER RADIUS
+   =========================================== */
+
+:root {
+  --radius-none: 0px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+}
+
+/* ===========================================
+   SHADOWS
+   =========================================== */
+
+:root {
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-glow-primary: 0 0 20px rgba(99, 102, 241, 0.3);
+}
+
+/* ===========================================
+   COMPONENT: BUTTON
+   =========================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  height: 40px;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.btn-secondary {
+  background: var(--color-background-tertiary);
+  color: var(--color-foreground);
+  border: none;
+  padding: 10px 16px;
+  height: 40px;
+}
+
+.btn-secondary:hover {
+  background: var(--color-border);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
+  padding: 10px 16px;
+  height: 40px;
+}
+
+.btn-outline:hover {
+  background: var(--color-background-tertiary);
+  border-color: var(--color-border-hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-foreground);
+  border: none;
+  padding: 10px 16px;
+  height: 40px;
+}
+
+.btn-ghost:hover {
+  background: var(--color-background-tertiary);
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 10px 16px;
+  height: 40px;
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+/* Button Sizes */
+.btn-sm { height: 32px; padding: 8px 12px; font-size: 14px; }
+.btn-md { height: 40px; padding: 10px 16px; font-size: 14px; }
+.btn-lg { height: 48px; padding: 12px 24px; font-size: 16px; }
+.btn-icon { width: 40px; height: 40px; padding: 0; }
+.btn-icon-sm { width: 32px; height: 32px; padding: 0; }
+
+/* ===========================================
+   COMPONENT: INPUT
+   =========================================== */
+
+.input {
+  background: var(--color-background-secondary);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  height: 40px;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.input::placeholder {
+  color: var(--color-foreground-tertiary);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-foreground);
+  margin-bottom: 6px;
+}
+
+/* ===========================================
+   COMPONENT: CARD
+   =========================================== */
+
+.card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: border-color 0.2s;
+}
+
+.card:hover {
+  border-color: var(--color-border-hover);
+}
+
+.card-header {
+  padding-bottom: 16px;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.card-description {
+  font-size: 14px;
+  color: var(--color-foreground-secondary);
+  margin-top: 4px;
+}
+
+/* ===========================================
+   COMPONENT: AVATAR
+   =========================================== */
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #6366F1, #A855F7);
+  color: white;
+  font-weight: 600;
+}
+
+.avatar-sm { width: 32px; height: 32px; font-size: 12px; }
+.avatar-md { width: 40px; height: 40px; font-size: 14px; }
+.avatar-lg { width: 64px; height: 64px; font-size: 20px; }
+
+/* ===========================================
+   COMPONENT: BADGE
+   =========================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.badge-primary {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.badge-success {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22C55E;
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #F59E0B;
+}
+
+.badge-error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+}
+
+.badge-teal {
+  background: rgba(45, 212, 191, 0.2);
+  color: #2DD4BF;
+}
+
+/* ===========================================
+   COMPONENT: MODAL
+   =========================================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.modal-description {
+  font-size: 14px;
+  color: var(--color-foreground-secondary);
+  margin-top: 8px;
+}
+
+/* ===========================================
+   COMPONENT: SIDEBAR
+   =========================================== */
+
+.sidebar {
+  width: 280px;
+  background: var(--color-background-secondary);
+  border-right: 1px solid var(--color-border);
+  padding: 16px;
+  height: 100vh;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-foreground-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidebar-item:hover {
+  background: var(--color-background-tertiary);
+  color: var(--color-foreground);
+}
+
+.sidebar-item.active {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.sidebar-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* ===========================================
+   COMPONENT: TABS
+   =========================================== */
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-foreground-tertiary);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  color: var(--color-foreground);
+}
+
+.tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* ===========================================
+   COMPONENT: CHAT BUBBLE
+   =========================================== */
+
+.chat-bubble {
+  max-width: 80%;
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chat-bubble-user {
+  background: var(--color-primary);
+  color: white;
+  border-radius: 16px 16px 4px 16px;
+  align-self: flex-end;
+}
+
+.chat-bubble-ai {
+  background: var(--color-background-tertiary);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
+  border-radius: 16px 16px 16px 4px;
+  align-self: flex-start;
+}
+
+/* ===========================================
+   COMPONENT: UPLOAD ZONE
+   =========================================== */
+
+.upload-zone {
+  border: 2px dashed var(--color-border);
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.upload-zone:hover {
+  border-color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.upload-zone.active {
+  border-color: var(--color-primary);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* ===========================================
+   COMPONENT: EMPTY STATE
+   =========================================== */
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  color: var(--color-foreground-tertiary);
+  margin: 0 auto 16px;
+}
+
+.empty-state-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-foreground);
+  margin-bottom: 8px;
+}
+
+.empty-state-description {
+  font-size: 14px;
+  color: var(--color-foreground-secondary);
+  margin-bottom: 24px;
+}
+
+/* ===========================================
+   COMPONENT: SKELETON
+   =========================================== */
+
+.skeleton {
+  background: linear-gradient(90deg, #1A1A24 25%, #2A2A3C 50%, #1A1A24 75%);
+  background-size: 200% 100%;
+  border-radius: 8px;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ===========================================
+   COMPONENT: TOAST
+   =========================================== */
+
+.toast {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  min-width: 300px;
+}
+
+.toast-success { border-left: 4px solid #22C55E; }
+.toast-error { border-left: 4px solid #EF4444; }
+.toast-warning { border-left: 4px solid #F59E0B; }
+.toast-info { border-left: 4px solid #6366F1; }
+
+/* ===========================================
+   CHART COLORS
+   =========================================== */
+
+:root {
+  --chart-1: #6366F1;
+  --chart-2: #2DD4BF;
+  --chart-3: #A855F7;
+  --chart-4: #FB923C;
+  --chart-5: #F43F5E;
+  --chart-6: #22C55E;
+}

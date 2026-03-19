@@ -44,7 +44,7 @@ export function OnboardingModal({ isOpen, onComplete, userName }: OnboardingModa
       icon: Sparkles,
       content: (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <FeatureCard
               icon={FileText}
               title="Document Analysis"
@@ -87,7 +87,7 @@ export function OnboardingModal({ isOpen, onComplete, userName }: OnboardingModa
           </div>
           <div className="space-y-3">
             <h4 className="font-medium text-sm">Supported file types:</h4>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {['PDF', 'CSV', 'Excel', 'JSON', 'TXT', 'Images'].map((type) => (
                 <div key={type} className="flex items-center gap-2 text-sm text-foreground-secondary">
                   <Check className="h-4 w-4 text-success" />
@@ -227,9 +227,9 @@ export function OnboardingModal({ isOpen, onComplete, userName }: OnboardingModa
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl z-50 px-4"
+            className="fixed inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 top-1/2 -translate-y-1/2 w-auto sm:w-full max-w-2xl z-50 sm:px-4"
           >
-            <div className="bg-background border border-border rounded-2xl shadow-2xl overflow-hidden">
+            <div className="bg-background border border-border rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
               {/* Progress bar */}
               <div className="h-1 bg-background-secondary">
                 <motion.div
@@ -241,8 +241,8 @@ export function OnboardingModal({ isOpen, onComplete, userName }: OnboardingModa
               </div>
 
               {/* Header */}
-              <div className="p-6 pb-0">
-                <div className="flex items-center gap-4">
+              <div className="p-4 sm:p-6 pb-0 flex-shrink-0">
+                <div className="flex items-center gap-3 sm:gap-4">
                   <motion.div
                     key={currentStepData.id}
                     initial={{ scale: 0.8, opacity: 0 }}
@@ -274,7 +274,7 @@ export function OnboardingModal({ isOpen, onComplete, userName }: OnboardingModa
               </div>
 
               {/* Content */}
-              <div className="p-6">
+              <div className="p-4 sm:p-6 overflow-y-auto flex-1">
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={currentStepData.id}
@@ -289,7 +289,7 @@ export function OnboardingModal({ isOpen, onComplete, userName }: OnboardingModa
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between p-6 pt-0">
+              <div className="flex items-center justify-between p-4 sm:p-6 pt-0 flex-shrink-0">
                 <div className="flex items-center gap-2">
                   {steps.map((_, index) => (
                     <button
