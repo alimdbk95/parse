@@ -154,8 +154,8 @@ export default function TermsOfService() {
             <h2 className="text-xl font-semibold text-foreground mb-3">14. Contact</h2>
             <p>
               If you have questions about these Terms of Service, please contact us at{' '}
-              <a href="mailto:legal@parse.app" className="text-primary hover:underline">
-                legal@parse.app
+              <a href="mailto:legal@parse-app.com" className="text-primary hover:underline">
+                legal@parse-app.com
               </a>
             </p>
           </section>

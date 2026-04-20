@@ -28,6 +28,8 @@ interface MessageListProps {
   onUpdateComment?: (messageId: string, commentId: string, content: string) => Promise<void>;
   onDeleteComment?: (messageId: string, commentId: string) => Promise<void>;
   onChartDataChange?: (messageId: string, newChartData: any) => Promise<void>;
+  onSendPrompt?: (prompt: string) => void;
+  hasDocuments?: boolean;
   readOnly?: boolean;
 }
 
@@ -43,6 +45,8 @@ export function MessageList({
   onUpdateComment,
   onDeleteComment,
   onChartDataChange,
+  onSendPrompt,
+  hasDocuments = false,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -115,65 +119,118 @@ export function MessageList({
     },
   ];
 
+  const suggestedPrompts = [
+    {
+      text: "Summarize the key findings",
+      icon: "📋",
+    },
+    {
+      text: "Create a chart showing the main trends",
+      icon: "📊",
+    },
+    {
+      text: "What are the most important insights?",
+      icon: "💡",
+    },
+    {
+      text: "Compare the data across categories",
+      icon: "⚖️",
+    },
+  ];
+
   return (
     <div
       ref={containerRef}
       className="flex-1 overflow-y-auto scroll-smooth relative overscroll-contain"
     >
       {messages.length === 0 ? (
-        <div className="flex h-full items-center justify-center p-8">
+        <div className="flex h-full items-center justify-center p-4 sm:p-8">
           <motion.div
-            className="text-center max-w-2xl"
+            className="text-center max-w-2xl w-full"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
             {/* Logo/Brand */}
             <motion.div
-              className="mb-8"
+              className="mb-6 sm:mb-8"
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.1, duration: 0.4 }}
             >
-              <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent-purple shadow-lg shadow-primary/20">
-                <span className="text-2xl font-bold text-white">P</span>
+              <div className="inline-flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent-purple shadow-lg shadow-primary/20">
+                <span className="text-xl sm:text-2xl font-bold text-white">P</span>
               </div>
             </motion.div>
 
             <motion.h1
-              className="text-3xl font-semibold text-foreground mb-3"
+              className="text-2xl sm:text-3xl font-semibold text-foreground mb-2 sm:mb-3"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.4 }}
             >
-              How can I help you analyze today?
+              {hasDocuments ? "Ready to analyze your documents" : "How can I help you analyze today?"}
             </motion.h1>
             <motion.p
-              className="text-foreground-secondary text-lg mb-10"
+              className="text-foreground-secondary text-base sm:text-lg mb-6 sm:mb-8"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3, duration: 0.4 }}
             >
-              Upload documents, paste data, or ask questions to begin your analysis
+              {hasDocuments
+                ? "Ask questions about your uploaded documents or try a suggestion below"
+                : "Upload documents, paste data, or ask questions to begin your analysis"
+              }
             </motion.p>
 
-            {/* Capability cards */}
-            <div className="grid grid-cols-2 gap-4 text-left">
-              {capabilities.map((cap, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 + i * 0.1, duration: 0.4 }}
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  className="p-4 rounded-xl border border-border bg-background-secondary/50 hover:bg-background-secondary hover:border-primary/30 transition-all cursor-default"
-                >
-                  <cap.icon className="h-5 w-5 text-primary mb-2" />
-                  <h3 className="font-medium text-foreground mb-1">{cap.title}</h3>
-                  <p className="text-sm text-foreground-tertiary">{cap.description}</p>
-                </motion.div>
-              ))}
-            </div>
+            {/* Suggested Prompts - show when documents are attached */}
+            {hasDocuments && onSendPrompt && (
+              <motion.div
+                className="mb-8"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35, duration: 0.4 }}
+              >
+                <p className="text-sm text-foreground-tertiary mb-3">Try asking:</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {suggestedPrompts.map((prompt, i) => (
+                    <motion.button
+                      key={i}
+                      onClick={() => onSendPrompt(prompt.text)}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.4 + i * 0.05, duration: 0.3 }}
+                      whileHover={{ scale: 1.03, y: -1 }}
+                      whileTap={{ scale: 0.97 }}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-background-secondary/50 hover:bg-background-secondary hover:border-primary/40 text-sm text-foreground-secondary hover:text-foreground transition-all"
+                    >
+                      <span>{prompt.icon}</span>
+                      <span>{prompt.text}</span>
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Capability cards - hide when documents attached */}
+            {!hasDocuments && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-left">
+                {capabilities.map((cap, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 + i * 0.1, duration: 0.4 }}
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    className="p-4 rounded-xl border border-border bg-background-secondary/50 hover:bg-background-secondary hover:border-primary/30 transition-all cursor-default"
+                  >
+                    <cap.icon className="h-5 w-5 text-primary mb-2" />
+                    <h3 className="font-medium text-foreground mb-1">{cap.title}</h3>
+                    <p className="text-sm text-foreground-tertiary">{cap.description}</p>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </motion.div>
         </div>
       ) : (

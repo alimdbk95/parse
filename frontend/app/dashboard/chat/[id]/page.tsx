@@ -642,6 +642,8 @@ export default function ChatPage() {
           onUpdateComment={handleUpdateComment}
           onDeleteComment={handleDeleteComment}
           onChartDataChange={canEdit ? handleChartDataChange : undefined}
+          onSendPrompt={canEdit ? handleSendMessage : undefined}
+          hasDocuments={documents.length > 0}
           readOnly={!canEdit}
         />
 
@@ -657,6 +659,7 @@ export default function ChatPage() {
         onRemoveFile={canEdit ? handleRemoveDocument : undefined}
         disabled={sending || !canEdit}
         placeholder={canEdit ? 'Ask about your data...' : 'View only - you cannot send messages'}
+        showQuickActions={messages.length === 0}
       />
 
       {/* Documents Modal */}

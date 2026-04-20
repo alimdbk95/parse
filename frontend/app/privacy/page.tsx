@@ -124,8 +124,8 @@ export default function PrivacyPolicy() {
             </ul>
             <p className="mt-2">
               To exercise these rights, contact us at{' '}
-              <a href="mailto:privacy@parse.app" className="text-primary hover:underline">
-                privacy@parse.app
+              <a href="mailto:privacy@parse-app.com" className="text-primary hover:underline">
+                privacy@parse-app.com
               </a>
             </p>
           </section>
@@ -175,8 +175,8 @@ export default function PrivacyPolicy() {
             <ul className="list-none mt-2 space-y-1">
               <li>
                 Email:{' '}
-                <a href="mailto:privacy@parse.app" className="text-primary hover:underline">
-                  privacy@parse.app
+                <a href="mailto:privacy@parse-app.com" className="text-primary hover:underline">
+                  privacy@parse-app.com
                 </a>
               </li>
             </ul>

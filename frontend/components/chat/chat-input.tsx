@@ -18,7 +18,15 @@ interface ChatInputProps {
   onRemoveFile?: (id: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  showQuickActions?: boolean;
 }
+
+const quickActions = [
+  { label: "Summarize", prompt: "Summarize the key points from this document" },
+  { label: "Key insights", prompt: "What are the most important insights?" },
+  { label: "Create chart", prompt: "Create a chart showing the main data trends" },
+  { label: "Compare", prompt: "Compare and contrast the main themes" },
+];
 
 export function ChatInput({
   onSend,
@@ -27,6 +35,7 @@ export function ChatInput({
   onRemoveFile,
   disabled = false,
   placeholder = 'Ask about your data...',
+  showQuickActions = false,
 }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -71,6 +80,33 @@ export function ChatInput({
   return (
     <div className="border-t border-border bg-background/95 backdrop-blur-md safe-area-bottom">
       <div className="max-w-3xl mx-auto px-3 py-3 sm:px-4 sm:py-4">
+        {/* Quick Actions - horizontal scroll */}
+        <AnimatePresence>
+          {showQuickActions && !disabled && attachedFiles.length > 0 && !message.trim() && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="mb-3 flex gap-2 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1"
+            >
+              {quickActions.map((action, index) => (
+                <motion.button
+                  key={action.label}
+                  onClick={() => onSend(action.prompt)}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: index * 0.05 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="flex items-center gap-1.5 rounded-full bg-background-secondary/80 px-3 py-1.5 text-xs sm:text-sm border border-border hover:border-primary/50 hover:bg-background-secondary text-foreground-secondary hover:text-foreground transition-all flex-shrink-0"
+                >
+                  {action.label}
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Attached files - horizontal scroll on mobile */}
         <AnimatePresence>
           {attachedFiles.length > 0 && (
