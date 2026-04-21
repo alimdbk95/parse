@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Paperclip, Plus, Pencil, Check, X, Download, Eye, FolderPlus, Folder, FileText, Image, ChevronDown, MessageSquare, History } from 'lucide-react';
+import { Paperclip, Plus, Pencil, Check, X, Download, Eye, FolderPlus, Folder, FileText, Image, ChevronDown, MessageSquare, History, MoreHorizontal } from 'lucide-react';
+import { MenuDivider } from '@/components/ui/dropdown';
 import { MessageList } from '@/components/chat/message-list';
 import { ChatInput } from '@/components/chat/chat-input';
 import { CommentPanel } from '@/components/chat/comment-panel';
 import { VersionHistory } from '@/components/analysis/version-history';
-import { OutputFormatModal, OutputFormat } from '@/components/analysis/output-format-modal';
 import { WorkflowProgress, WorkflowSuggestions } from '@/components/analysis/workflow-progress';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,10 +62,6 @@ export default function ChatPage() {
 
   // Version history state
   const [showVersionHistory, setShowVersionHistory] = useState(false);
-
-  // Output format state
-  const [showOutputFormatModal, setShowOutputFormatModal] = useState(false);
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
   // Template workflow state
   const [activeTemplate, setActiveTemplate] = useState<AnalysisTemplate | null>(null);
@@ -167,34 +163,18 @@ export default function ChatPage() {
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || sending) return;
 
-    // Show output format modal on first user message if not already set
+    // Auto-set output format to 'detailed' on first message (skip modal for simpler UX)
     if (isFirstUserMessage) {
-      setPendingMessage(content);
-      setShowOutputFormatModal(true);
-      return;
+      try {
+        await api.updateAnalysis(analysisId, { outputFormat: 'detailed' });
+        setAnalysis((prev: any) => ({ ...prev, outputFormat: 'detailed' }));
+      } catch (error) {
+        // Continue even if format save fails
+        console.error('Failed to save output format:', error);
+      }
     }
 
     await sendMessageToAPI(content);
-  };
-
-  const handleOutputFormatSelect = async (format: OutputFormat) => {
-    // Save the output format to the analysis
-    try {
-      await api.updateAnalysis(analysisId, { outputFormat: format });
-      setAnalysis((prev: any) => ({ ...prev, outputFormat: format }));
-    } catch (error: any) {
-      console.error('Failed to save output format:', error);
-      toast.error('Failed to save output format', error?.message || 'Please try again');
-    }
-
-    // Send the pending message
-    if (pendingMessage) {
-      try {
-        await sendMessageToAPI(pendingMessage);
-      } finally {
-        setPendingMessage(null);
-      }
-    }
   };
 
   const sendMessageToAPI = async (content: string) => {
@@ -583,77 +563,7 @@ export default function ChatPage() {
               View only
             </span>
           )}
-          {/* Save to Repository */}
-          <button
-            onClick={handleOpenSaveToRepo}
-            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all"
-            title="Save to Repository"
-          >
-            <FolderPlus className="h-4 w-4" />
-            <span className="hidden sm:inline text-xs">Save</span>
-          </button>
-          {/* Download Menu */}
-          <Menu
-            trigger={
-              <button
-                disabled={exporting}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors disabled:opacity-50"
-                title="Download"
-              >
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline text-xs">Download</span>
-                <ChevronDown className="h-3 w-3" />
-              </button>
-            }
-          >
-            <MenuItem
-              icon={<FileText className="h-4 w-4" />}
-              onClick={handleExportPdf}
-            >
-              Download as PDF
-            </MenuItem>
-            <MenuItem
-              icon={<Image className="h-4 w-4" />}
-              onClick={() => handleExportChartsAsImage('png')}
-            >
-              Download Charts as PNG
-            </MenuItem>
-            <MenuItem
-              icon={<Image className="h-4 w-4" />}
-              onClick={() => handleExportChartsAsImage('jpeg')}
-            >
-              Download Charts as JPEG
-            </MenuItem>
-          </Menu>
-          {/* Version History */}
-          <button
-            onClick={() => setShowVersionHistory(true)}
-            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all"
-            title="Version History"
-          >
-            <History className="h-4 w-4" />
-            <span className="hidden sm:inline text-xs">History</span>
-          </button>
-          {/* Comments indicator */}
-          <button
-            onClick={() => setShowCommentPanel(true)}
-            className={cn(
-              "flex items-center gap-1.5 px-2 py-1.5 rounded-lg active:scale-95 transition-all relative",
-              showCommentPanel
-                ? "text-primary bg-primary/10"
-                : "text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary"
-            )}
-            title="Comments"
-          >
-            <MessageSquare className="h-4 w-4" />
-            <span className="hidden sm:inline text-xs">Comments</span>
-            {Object.values(messageComments).flat().length > 0 && (
-              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] text-white flex items-center justify-center font-medium">
-                {Object.values(messageComments).flat().length}
-              </span>
-            )}
-          </button>
-          {/* Attachments */}
+          {/* Attachments - primary action, always visible */}
           <button
             onClick={() => setShowDocuments(true)}
             className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary active:scale-95 transition-all relative"
@@ -667,6 +577,52 @@ export default function ChatPage() {
               </span>
             )}
           </button>
+          {/* More menu - consolidated actions */}
+          <Menu
+            trigger={
+              <button
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-foreground-tertiary hover:text-foreground hover:bg-background-tertiary transition-colors relative"
+                title="More options"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+                {Object.values(messageComments).flat().length > 0 && (
+                  <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary" />
+                )}
+              </button>
+            }
+          >
+            <MenuItem
+              icon={<Download className="h-4 w-4" />}
+              onClick={handleExportPdf}
+            >
+              Download PDF
+            </MenuItem>
+            <MenuItem
+              icon={<Image className="h-4 w-4" />}
+              onClick={() => handleExportChartsAsImage('png')}
+            >
+              Download Charts
+            </MenuItem>
+            <MenuDivider />
+            <MenuItem
+              icon={<FolderPlus className="h-4 w-4" />}
+              onClick={handleOpenSaveToRepo}
+            >
+              Save to Repository
+            </MenuItem>
+            <MenuItem
+              icon={<History className="h-4 w-4" />}
+              onClick={() => setShowVersionHistory(true)}
+            >
+              Version History
+            </MenuItem>
+            <MenuItem
+              icon={<MessageSquare className="h-4 w-4" />}
+              onClick={() => setShowCommentPanel(true)}
+            >
+              Comments {Object.values(messageComments).flat().length > 0 && `(${Object.values(messageComments).flat().length})`}
+            </MenuItem>
+          </Menu>
         </div>
       </header>
 
@@ -871,17 +827,6 @@ export default function ChatPage() {
         isOpen={showVersionHistory}
         onClose={() => setShowVersionHistory(false)}
         onVersionRestored={handleVersionRestored}
-      />
-
-      {/* Output Format Selection Modal */}
-      <OutputFormatModal
-        isOpen={showOutputFormatModal}
-        onClose={() => {
-          setShowOutputFormatModal(false);
-          setPendingMessage(null);
-        }}
-        onSelect={handleOutputFormatSelect}
-        currentFormat={analysis?.outputFormat}
       />
     </div>
   );
