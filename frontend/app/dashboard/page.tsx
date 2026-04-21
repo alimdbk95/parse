@@ -13,9 +13,11 @@ import { UploadZone } from '@/components/documents/upload-zone';
 import { DocumentCard } from '@/components/documents/document-card';
 import { Modal } from '@/components/ui/modal';
 import { Menu, MenuItem, MenuDivider } from '@/components/ui/dropdown';
+import { TemplateSelectorModal } from '@/components/analysis/template-selector-modal';
 import { api } from '@/lib/api';
 import { useStore } from '@/lib/store';
 import { formatDate, cn } from '@/lib/utils';
+import { AnalysisTemplate } from '@/lib/analysis-templates';
 
 const quickActions = [
   {
@@ -54,6 +56,8 @@ export default function DashboardPage() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [showUpload, setShowUpload] = useState(false);
   const [showCreateRepo, setShowCreateRepo] = useState(false);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [creatingAnalysis, setCreatingAnalysis] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -91,12 +95,7 @@ export default function DashboardPage() {
   const handleQuickAction = async (action: string) => {
     switch (action) {
       case 'analysis':
-        try {
-          const { analysis } = await api.createAnalysis({ title: 'New Analysis' });
-          router.push(`/dashboard/chat/${analysis.id}`);
-        } catch (error) {
-          console.error('Failed to create analysis:', error);
-        }
+        setShowTemplateSelector(true);
         break;
       case 'upload':
         setShowUpload(true);
@@ -104,6 +103,23 @@ export default function DashboardPage() {
       case 'repository':
         setShowCreateRepo(true);
         break;
+    }
+  };
+
+  const handleTemplateSelect = async (template: AnalysisTemplate | null) => {
+    setCreatingAnalysis(true);
+    try {
+      const title = template ? `${template.name} Analysis` : 'New Analysis';
+      const { analysis } = await api.createAnalysis({
+        title,
+        templateId: template?.id,
+      });
+      setShowTemplateSelector(false);
+      router.push(`/dashboard/chat/${analysis.id}${template ? `?template=${template.id}` : ''}`);
+    } catch (error) {
+      console.error('Failed to create analysis:', error);
+    } finally {
+      setCreatingAnalysis(false);
     }
   };
 
@@ -641,6 +657,14 @@ export default function DashboardPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Template Selector Modal */}
+      <TemplateSelectorModal
+        isOpen={showTemplateSelector}
+        onClose={() => setShowTemplateSelector(false)}
+        onSelect={handleTemplateSelect}
+        loading={creatingAnalysis}
+      />
     </div>
   );
 }

@@ -216,7 +216,7 @@ class ApiClient {
     return this.request<{ analyses: any[] }>(`/analyses${query}`);
   }
 
-  async createAnalysis(data: { title?: string; description?: string; workspaceId?: string; documentIds?: string[] }) {
+  async createAnalysis(data: { title?: string; description?: string; workspaceId?: string; documentIds?: string[]; templateId?: string }) {
     return this.request<{ analysis: any }>('/analyses', {
       method: 'POST',
       body: data,
@@ -2156,6 +2156,42 @@ class ApiClient {
     return this.request<{
       features: { feature: string; count: number }[];
     }>(`/analytics/features${params}`);
+  }
+
+  // ============ BILLING ============
+
+  async getBillingStatus() {
+    return this.request<{
+      plan: string;
+      isActive: boolean;
+      currentPeriodEnd: string | null;
+      priceId: string | null;
+      limits: {
+        name: string;
+        documentsPerMonth: number;
+        queriesPerMonth: number;
+      };
+    }>('/billing/status');
+  }
+
+  async getBillingPrices() {
+    return this.request<{
+      pro: { monthly: string; yearly: string };
+      team: { monthly: string; yearly: string };
+    }>('/billing/prices');
+  }
+
+  async createCheckoutSession(priceId: string) {
+    return this.request<{ url: string }>('/billing/checkout', {
+      method: 'POST',
+      body: { priceId },
+    });
+  }
+
+  async createBillingPortalSession() {
+    return this.request<{ url: string }>('/billing/portal', {
+      method: 'POST',
+    });
   }
 }
 

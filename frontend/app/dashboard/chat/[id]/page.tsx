@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Paperclip, Plus, Pencil, Check, X, Download, Eye, FolderPlus, Folder, FileText, Image, ChevronDown, MessageSquare, History } from 'lucide-react';
 import { MessageList } from '@/components/chat/message-list';
 import { ChatInput } from '@/components/chat/chat-input';
 import { CommentPanel } from '@/components/chat/comment-panel';
 import { VersionHistory } from '@/components/analysis/version-history';
 import { OutputFormatModal, OutputFormat } from '@/components/analysis/output-format-modal';
+import { WorkflowProgress, WorkflowSuggestions } from '@/components/analysis/workflow-progress';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
@@ -19,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useStore } from '@/lib/store';
 import { useToast } from '@/components/ui/toast';
+import { getTemplateById, AnalysisTemplate, TemplatePrompt } from '@/lib/analysis-templates';
 
 interface Comment {
   id: string;
@@ -30,7 +32,9 @@ interface Comment {
 export default function ChatPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const analysisId = params.id as string;
+  const templateId = searchParams.get('template');
   const { user, currentWorkspace } = useStore();
   const toast = useToast();
 
@@ -62,6 +66,10 @@ export default function ChatPage() {
   // Output format state
   const [showOutputFormatModal, setShowOutputFormatModal] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+
+  // Template workflow state
+  const [activeTemplate, setActiveTemplate] = useState<AnalysisTemplate | null>(null);
+  const [completedWorkflowSteps, setCompletedWorkflowSteps] = useState(0);
 
   // Check if user can edit (admin or editor)
   const canEdit = userRole === 'admin' || userRole === 'editor';
@@ -123,6 +131,38 @@ export default function ChatPage() {
 
     fetchAnalysis();
   }, [analysisId, router]);
+
+  // Initialize template workflow if templateId is present
+  useEffect(() => {
+    if (templateId) {
+      const template = getTemplateById(templateId);
+      if (template) {
+        setActiveTemplate(template);
+      }
+    }
+  }, [templateId]);
+
+  // Track completed workflow steps based on user messages matching template prompts
+  useEffect(() => {
+    if (activeTemplate && messages.length > 0) {
+      const userMessages = messages.filter(m => m.role === 'user');
+      // Count how many template prompts have been sent
+      let completed = 0;
+      for (const prompt of activeTemplate.prompts) {
+        const found = userMessages.some(m =>
+          m.content.toLowerCase().includes(prompt.prompt.toLowerCase().slice(0, 50))
+        );
+        if (found) {
+          completed = Math.max(completed, prompt.order);
+        }
+      }
+      setCompletedWorkflowSteps(completed);
+    }
+  }, [activeTemplate, messages]);
+
+  const handleWorkflowStepClick = (prompt: TemplatePrompt) => {
+    handleSendMessage(prompt.prompt);
+  };
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || sending) return;
@@ -630,7 +670,27 @@ export default function ChatPage() {
         </div>
       </header>
 
-      {/* Messages */}
+      {/* Workflow Progress Bar */}
+      {activeTemplate && (
+        <WorkflowProgress
+          template={activeTemplate}
+          completedSteps={completedWorkflowSteps}
+          onStepClick={handleWorkflowStepClick}
+          disabled={sending || !canEdit}
+        />
+      )}
+
+      {/* Messages or Workflow Suggestions */}
+      {activeTemplate && messages.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center">
+          <WorkflowSuggestions
+            template={activeTemplate}
+            currentStep={completedWorkflowSteps}
+            onSendPrompt={handleSendMessage}
+            hasDocuments={documents.length > 0}
+          />
+        </div>
+      ) : (
         <MessageList
           messages={messages}
           loading={sending}
@@ -646,6 +706,7 @@ export default function ChatPage() {
           hasDocuments={documents.length > 0}
           readOnly={!canEdit}
         />
+      )}
 
       {/* Input */}
       <ChatInput
